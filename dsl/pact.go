@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/logutils"
+	"github.com/pact-foundation/pact-go/dsl/native"
 	"github.com/pact-foundation/pact-go/types"
 )
 
@@ -130,32 +131,31 @@ func (p *Pact) Teardown() *Pact {
 func (p *Pact) Verify(integrationTest func() error) error {
 	p.Setup()
 	log.Printf("[DEBUG] pact verify")
-	mockServer := &MockService{
-		BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
-		Consumer: p.Consumer,
-		Provider: p.Provider,
-	}
-
-	for _, interaction := range p.Interactions {
-		err := mockServer.AddInteraction(interaction)
-		if err != nil {
-			return err
-		}
-	}
+	// mockServer := &MockService{
+	// 	BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
+	// 	Consumer: p.Consumer,
+	// 	Provider: p.Provider,
+	// }
 
 	// Run the integration test
 	integrationTest()
 
-	// Run Verification Process
-	err := mockServer.Verify()
-	if err != nil {
-		return err
+	res := native.Verify(p.Server.Port)
+	fmt.Println("Result from verify:", res)
+	if !res {
+		return fmt.Errorf("Pact validation failed!")
 	}
+	// Run Verification Process
+	// err := mockServer.Verify()
+	// if err != nil {
+	// 	return err
+	// }
 
 	// Clear out interations
-	p.Interactions = make([]*Interaction, 0)
+	// p.Interactions = make([]*Interaction, 0)
 
-	return mockServer.DeleteInteractions()
+	// return mockServer.DeleteInteractions()
+	return nil
 }
 
 // WritePact should be called writes when all tests have been performed for a

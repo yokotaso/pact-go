@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pact-foundation/pact-go/dsl/native"
 	"github.com/pact-foundation/pact-go/types"
 )
 
@@ -85,21 +86,25 @@ var waitForPort = func(port int, message string) error {
 // StartServer starts a remote Pact Mock Server.
 func (p *PactClient) StartServer(args []string) *types.MockServer {
 	log.Println("[DEBUG] client: starting a server")
-	var res types.MockServer
-	client, err := getHTTPClient(p.Port)
-	if err == nil {
-		err = client.Call(commandStartServer, types.MockServer{Args: args}, &res)
-		if err != nil {
-			log.Println("[ERROR] rpc:", err.Error())
+
+	port := native.CreateMockServer(`{
+		"description": "Some name for the test",
+		"provider_state": "Some state",
+		"request": {
+			"method": "GET",
+			"path": "/foobar"
+		},
+		"response": {
+			"status": 200,
+			"headers": {
+				"Content-Type": "application/json"
+			}
 		}
-	}
+	}`)
 
-	if err == nil {
-		waitForPort(res.Port, fmt.Sprintf(`Timed out waiting for Mock Server to
-			start on port %d - are you sure it's running?`, res.Port))
+	return &types.MockServer{
+		Port: port,
 	}
-
-	return &res
 }
 
 // VerifyProvider runs the verification process against a running Provider.

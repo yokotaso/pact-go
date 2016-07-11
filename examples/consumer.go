@@ -25,7 +25,7 @@ func main() {
 
 	// Pass in test case
 	var test = func() error {
-		_, err := http.Get(fmt.Sprintf("http://localhost:%d/foobar", pact.Server.Port))
+		_, err := http.Get(fmt.Sprintf("http://localhost:%d/foobaraoeu", pact.Server.Port))
 		if err != nil {
 			log.Fatalf("Error sending request: %v", err)
 		}

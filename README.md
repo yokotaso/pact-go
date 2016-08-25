@@ -54,23 +54,18 @@ how to get going.
 
 ## Installation
 
-* Download a [release](https://github.com/pact-foundation/pact-go/releases) for your OS.
-* Unzip the package into a known location, and add to the `PATH`.
-* Run `pact-go` to see what options are available.
+Just add Pact Go as a dependency to your project, like any other library:
+
+```
+go get github.com/pact-foundation/pact-go
+```
 
 ## Running
 
-Due to some design constraints, Pact Go runs a two-step process:
-
-1. Run `pact-go daemon` in a separate process/shell. The Consumer and Provider
-DSLs communicate over a local (RPC) connection, and is transparent to clients.
-1. Create your Pact Consumer/Provider Tests. It defaults to run on port `6666`.
-
-*NOTE: The daemon is completely thread safe and it is normal to leave the daemon
-running for long periods (e.g. on a CI server).*
+Simple create your Pact Consumer/Provider Tests and run your test suites as you
+normally would.
 
 ### Consumer
-1. Start the daemon with `./pact-go daemon`.
 1. `cd <pact-go>/examples`.
 1. `go run -v consumer.go`.
 
@@ -88,10 +83,8 @@ import (
 
 func TestLogin(t *testing.T) {
 
-	// Create Pact, connecting to local Daemon
-	// Ensure the port matches the daemon port!
+	// Create Pact
 	pact := dsl.Pact{
-		Port:     6666,
 		Consumer: "MyConsumer",
 		Provider: "MyProvider",
 	}
@@ -267,7 +260,7 @@ Read more about [flexible matching](https://github.com/realestate-com-au/pact/wi
 	[Pact Broker](http://docs.pact.io/documentation/sharings_pacts.html)).
 
 
-	See the `Skip()'ed` [integration tests](https://github.com/pact-foundation/pact-go/blob/master/dsl/pact_test.go)
+	See the [integration tests](https://github.com/pact-foundation/pact-go/blob/master/dsl/pact_integration_test.go)
 	for a more complete E2E example.
 
 #### Provider Verification

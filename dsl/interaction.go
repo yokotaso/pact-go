@@ -5,7 +5,8 @@ import (
 	"log"
 )
 
-// Interaction is the main implementation of the Pact interface.
+// Interaction is the main implementation of the Pact interface, and will be
+// converted directly into a Pact file.
 type Interaction struct {
 	// Request
 	Request Request `json:"request"`
@@ -18,6 +19,10 @@ type Interaction struct {
 
 	// Provider state to be written into the Pact file
 	State string `json:"provider_state,omitempty"`
+
+	// MatchingRules contains all of the specific matching rules extracted
+	// from the Interaction matchers.
+	MatchingRules map[string]string `json:"matchingRules,omitempty"`
 }
 
 // Given specifies a provider state. Optional.
@@ -46,6 +51,7 @@ func (p *Interaction) WithRequest(request Request) *Interaction {
 	case string:
 		p.Request.Body = toObject([]byte(content))
 	default:
+		// TODO: Check for a builder type and handle here???
 		// leave alone
 	}
 

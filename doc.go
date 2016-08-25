@@ -18,10 +18,8 @@ A typical consumer-side test would look something like this:
 
 	func TestLogin(t *testing.T) {
 
-		// Create Pact, connecting to local Daemon
-		// Ensure the port matches the daemon port!
+		// Create Pact
 		pact := Pact{
-			Port:     6666,
 			Consumer: "My Consumer",
 			Provider: "My Provider",
 		}

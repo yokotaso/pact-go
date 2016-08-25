@@ -30,16 +30,7 @@ import (
 	"log"
 )
 
-// Matcher defines how a given part of an API (request/response/header/etc.)
-// is checked during Pact verification
-// type Matcher struct {
-// 	// The type of Matcher
-// 	Type string
-//
-// 	// Matcher to be serialised. Keys must be strings to be valid JSON.
-// 	Value map[string]interface{}
-// }
-
+// matcherType is essentially a key value JSON pairs for serialisation
 type matcherType map[string]interface{}
 
 // Matcher is responsible for generating Pact values and matching in the Pact file.
@@ -59,24 +50,31 @@ type Matcher struct {
 	Type int
 }
 
+// Matcher Types
 const (
+	// LikeMatcher is the ID for the Like Matcher
 	LikeMatcher = iota
+
+	// TermMatcher is the ID for the Term Matcher
 	TermMatcher
+
+	// ArrayMinLikeMatcher is the ID for the ArrayMinLike Matcher
 	ArrayMinLikeMatcher
+
+	// ArrayMaxLikeMatcher is the ID for the ArrayMaxLikeMatcher Matcher
 	ArrayMaxLikeMatcher
 )
 
-type keyedArrayElement map[string][]interface{}
-
-// type keyedArrayElement map[string][]map[string]interface{}
+// jsonArray is the type for JSON arrays
+type jsonArray map[string][]interface{}
 
 // Creates sample array contents given an array Matcher.
-func makeArrayContents(times int, key string, value interface{}) keyedArrayElement {
+func makeArrayContents(times int, key string, value interface{}) jsonArray {
 	contents := make([]interface{}, times)
 	for i := 0; i < times; i++ {
 		contents[i] = value
 	}
-	return keyedArrayElement{
+	return jsonArray{
 		key: contents,
 	}
 }
@@ -88,6 +86,20 @@ func ArrayMinLike(min int, key string, value interface{}) Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"min":   min,
+			"match": "type",
+		},
+		Value: value, //makeArrayContents(min, key, value),
+		Type:  ArrayMinLikeMatcher,
+	}
+}
+
+// ArrayMaxlike matches nested arrays in request bodies.
+// Ensure that each item in the list matches the provided example and the list
+// is no smaller than the provided min
+func ArrayMaxlike(max int, key string, value interface{}) Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"max":   max,
 			"match": "type",
 		},
 		Value: value, //makeArrayContents(min, key, value),
@@ -130,7 +142,8 @@ type PactDslBuilder struct {
 	path string
 }
 
-func BuildPact(root Matcher) PactDslBuilder {
+// func BuildPact(root Matcher) PactDslBuilder {
+func BuildPact(root map[string]interface{}) PactDslBuilder {
 
 	dsl := PactDslBuilder{}
 	dsl.path = "$.body"
@@ -140,14 +153,34 @@ func BuildPact(root Matcher) PactDslBuilder {
 	// 1.1 Recurse through Matcher, building generated body first
 	// 1.2 Update PATH as we go -> deferred
 
-	dsl.path, dsl.Body = recurseStructure(root, body, dsl.path)
+	// Whats the root key?
+	// if _, ok := root.Value.(map[string]interface{}); !ok {
+	// 	log.Fatalln("Matcher provided does not contain any root keys")
+	// }
+
+	dsl.path, dsl.Body = recurseStructure("", root, body, dsl.path)
 
 	return dsl
 }
 
-// Update path to the specific path
-// See PactBodyBuilder.groovy line 96 for inspiration/logic
-func recurseStructure(value interface{}, body map[string]interface{}, path string) (string, map[string]interface{}) {
+const pathSep = "."
+const allListItems = "[*]"
+const startList = "["
+const endList = "]"
+
+// Recurse the Matcher tree and build up an example body and set of matchers for
+// the Pact file. Ideally this stays as a pure function, but probably might need
+// to store matchers externally.
+//
+// Update path to the specific path -> Path
+// See PactBodyBuilder.groovy line 96 for inspiration/logic.
+//
+// Arguments:
+// 	- key => Current key in the body to set
+// 	- value => Value held in the next Matcher (which may be another Matcher)
+// 	- body => Current state of the body map
+// 	- path => Path to the current key TODO: Path not doing anything yet.
+func recurseStructure(key string, value interface{}, body map[string]interface{}, path string) (string, map[string]interface{}) {
 	fmt.Println("Recursing => value:", "", ", body:", body, "path:", path)
 
 	switch t := value.(type) {
@@ -159,16 +192,16 @@ func recurseStructure(value interface{}, body map[string]interface{}, path strin
 		// Like Matchers
 		case ArrayMaxLikeMatcher:
 			fmt.Println("\t=> ArrayMaxLikeMatcher")
-			// body[key] = recurseStructure(t.Value, path + buildPath(key, ALL_LIST_ITEMS))
-			recurseStructure(t.Value, body, buildPath(path, ""))
+			path, body[key] = recurseStructure(key, t.Value, body, path+buildPath(key, allListItems))
+			path, body[key] = recurseStructure(key, t.Value, body, path+buildPath(key, allListItems))
 		case ArrayMinLikeMatcher:
 			fmt.Println("\t=> ArrayMinLikeMatcher")
-			recurseStructure(t.Value, body, buildPath(path, ""))
+			path, body[key] = recurseStructure(key, t.Value, body, buildPath(path, ""))
 
 		// Simple Matchers
 		case TermMatcher:
 			fmt.Println("\t=> TermMatcher", t)
-			recurseStructure(t.Value, body, buildPath(path, ""))
+			path, body[key] = recurseStructure(key, t.Value, body, buildPath(path, ""))
 		default:
 			// should probably throw an error here!?
 			log.Fatalf("Unknown matcher detected: %d", t.Type)
@@ -176,20 +209,21 @@ func recurseStructure(value interface{}, body map[string]interface{}, path strin
 
 	// Slice/Array types
 	// case []interface{}
-	// body[key]  = recurseStructure(value, body, path + buildPath(key, START_LIST + i + END_LIST)) <- matchers
-	// body[key] = recurseStructure(value, body, path + buildPath(key)) <- terminating case (primitives)
+	// body[key]  = recurseStructure(key, value, body, path + buildPath(key, StartList + i + endList)) <- matchers
+	// body[key] = recurseStructure(key, value, body, path + buildPath(key)) <- terminating case (primitives)
 
 	// Map -> Recurse keys
 	case map[string]interface{}:
 		// iterate over Keys
 		for k, v := range t {
 			fmt.Println("\t=> Map type. recursing...", k, v)
-			path, body[k] = recurseStructure(v, body, path)
+			path, body[k] = recurseStructure(key, v, body, path)
 		}
 
 	// Primitives
 	default:
-		fmt.Println("\t=> Unknown type 2. Probably just a string/int/etc.", value)
+		fmt.Println("\t=> Unknown type. Probably just a primitive (string/int/etc.)", value)
+		body[key] = value
 	}
 
 	return path, body

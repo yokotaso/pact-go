@@ -27,7 +27,7 @@ func TestMatcher_RecursivePath(t *testing.T) {
 	matcher := ArrayMinLike(3, "passwords", map[string]interface{}{"pass": PactTerm("\\d+", 1234)})
 	matcher2 := ArrayMinLike(3, "passwords", matcher)
 	matcher3 := ArrayMinLike(3, "passwords", matcher2)
-	BuildPact(matcher3)
+	BuildPact(map[string]interface{}{"passwords": matcher3})
 	// fmt.Println(b)
 	// fmt.Println(formatJSONObject(b))
 }

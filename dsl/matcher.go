@@ -197,14 +197,7 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 		// Simple Matchers (Terminal cases)
 		case TermMatcher:
 			fmt.Println("\t=> TermMatcher", t)
-			switch body[key].(type) {
-			case []interface{}:
-				fmt.Println("Array field -> Append!")
-				body[key] = append(body[key].([]interface{}), t.Value)
-			default:
-				body[key] = t.Value
-			}
-			// body[key] = t.Value // build(key, t.Value, body, buildPath(path, ""))
+			body[key] = t.Value
 		default:
 			// should probably throw an error here!?
 			log.Fatalf("Unknown matcher detected: %d", t.Type)
@@ -212,12 +205,15 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 
 	// Slice/Array types
 	case []interface{}:
-		fmt.Println("Array member!")
-		body[key] = make([]interface{}, 0)
+		arrayValues := make([]interface{}, len(t))
+		arrayMap := make(map[string]interface{})
 
 		for i, el := range t {
-			_, body = build(key, el, copyMap(body), path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList))) // <- matchers
+			k := fmt.Sprintf("%d", i)
+			build(k, el, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList))) // <- matchers
+			arrayValues[i] = arrayMap[k]
 		}
+		body[key] = arrayValues
 
 	// Map -> Recurse keys
 	case map[string]interface{}:
@@ -230,7 +226,7 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 			if key == "" {
 				_, body = build(k, v, copyMap(body), path)
 			} else {
-				_, entry = build(k, v, entry, path)
+				build(k, v, entry, path)
 				body[key] = entry
 			}
 

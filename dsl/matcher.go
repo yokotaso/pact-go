@@ -119,8 +119,8 @@ func Like(content interface{}) Matcher {
 	}
 }
 
-// Like specifies that the given content type should be matched based
-// on type (int, string etc.) instead of a verbatim match.
+// PactTerm specifies that the given content type should be matched based
+// on a regular expression.
 func PactTerm(matcher string, content interface{}) Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
@@ -132,6 +132,8 @@ func PactTerm(matcher string, content interface{}) Matcher {
 	}
 }
 
+// PactDslBuilder contains the struct generates examples and matching rules
+// given a structure containing matchers.
 type PactDslBuilder struct {
 	// Matching rules used by the verifier to confirm Provider confirms to Pact.
 	MatchingRules map[string]string `json:"matchingRules"`
@@ -142,7 +144,8 @@ type PactDslBuilder struct {
 	path string
 }
 
-// func BuildPact(root Matcher) PactDslBuilder {
+// BuildPact takes a map containing recursive Matchers and generates the rules
+// to be serialised into the Pact file.
 func BuildPact(root map[string]interface{}) PactDslBuilder {
 
 	dsl := PactDslBuilder{}
@@ -153,12 +156,7 @@ func BuildPact(root map[string]interface{}) PactDslBuilder {
 	// 1.1 Recurse through Matcher, building generated body first
 	// 1.2 Update PATH as we go -> deferred
 
-	// Whats the root key?
-	// if _, ok := root.Value.(map[string]interface{}); !ok {
-	// 	log.Fatalln("Matcher provided does not contain any root keys")
-	// }
-
-	dsl.path, dsl.Body = recurseStructure("", root, body, dsl.path)
+	dsl.path, dsl.Body = build("", root, body, dsl.path)
 
 	return dsl
 }
@@ -180,8 +178,8 @@ const endList = "]"
 // 	- value => Value held in the next Matcher (which may be another Matcher)
 // 	- body => Current state of the body map
 // 	- path => Path to the current key TODO: Path not doing anything yet.
-func recurseStructure(key string, value interface{}, body map[string]interface{}, path string) (string, map[string]interface{}) {
-	fmt.Println("Recursing => value:", "", ", body:", body, "path:", path)
+func build(key string, value interface{}, body map[string]interface{}, path string) (string, map[string]interface{}) {
+	fmt.Println("Recursing => key:", key, ", body:", body, ", value: ", value)
 
 	switch t := value.(type) {
 
@@ -190,41 +188,61 @@ func recurseStructure(key string, value interface{}, body map[string]interface{}
 		switch t.Type {
 
 		// Like Matchers
-		case ArrayMaxLikeMatcher:
-			fmt.Println("\t=> ArrayMaxLikeMatcher")
-			path, body[key] = recurseStructure(key, t.Value, body, path+buildPath(key, allListItems))
-			path, body[key] = recurseStructure(key, t.Value, body, path+buildPath(key, allListItems))
 		case ArrayMinLikeMatcher:
 			fmt.Println("\t=> ArrayMinLikeMatcher")
-			path, body[key] = recurseStructure(key, t.Value, body, buildPath(path, ""))
+			// path, body[key] = build(key, t.Value, body, buildPath(path, ""))
+			// build(key, t.Value, body, buildPath(path, ""))
+			// TODO: insert t.Matcher["min"] times the t.Value??
 
-		// Simple Matchers
+		// Simple Matchers (Terminal cases)
 		case TermMatcher:
 			fmt.Println("\t=> TermMatcher", t)
-			path, body[key] = recurseStructure(key, t.Value, body, buildPath(path, ""))
+			switch body[key].(type) {
+			case []interface{}:
+				fmt.Println("Array field -> Append!")
+				body[key] = append(body[key].([]interface{}), t.Value)
+			default:
+				body[key] = t.Value
+			}
+			// body[key] = t.Value // build(key, t.Value, body, buildPath(path, ""))
 		default:
 			// should probably throw an error here!?
 			log.Fatalf("Unknown matcher detected: %d", t.Type)
 		}
 
 	// Slice/Array types
-	// case []interface{}
-	// body[key]  = recurseStructure(key, value, body, path + buildPath(key, StartList + i + endList)) <- matchers
-	// body[key] = recurseStructure(key, value, body, path + buildPath(key)) <- terminating case (primitives)
+	case []interface{}:
+		fmt.Println("Array member!")
+		body[key] = make([]interface{}, 0)
+
+		for i, el := range t {
+			_, body = build(key, el, copyMap(body), path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList))) // <- matchers
+		}
 
 	// Map -> Recurse keys
 	case map[string]interface{}:
-		// iterate over Keys
+
+		entry := make(map[string]interface{})
 		for k, v := range t {
-			fmt.Println("\t=> Map type. recursing...", k, v)
-			path, body[k] = recurseStructure(key, v, body, path)
+			fmt.Println("\t=> Map type. recursing into key =>", k)
+
+			// Starting position
+			if key == "" {
+				_, body = build(k, v, copyMap(body), path)
+			} else {
+				_, entry = build(k, v, entry, path)
+				body[key] = entry
+			}
+
 		}
 
-	// Primitives
+	// Primitives (terminal cases)
 	default:
 		fmt.Println("\t=> Unknown type. Probably just a primitive (string/int/etc.)", value)
 		body[key] = value
 	}
+
+	fmt.Println("Returning body: ", body)
 
 	return path, body
 }
@@ -245,16 +263,6 @@ func EachLike(content interface{}, minRequired int) string {
 		}`, content, minRequired)
 }
 
-// Like specifies that the given content type should be matched based
-// on type (int, string etc.) instead of a verbatim match.
-// func Like(content interface{}) string {
-// 	return fmt.Sprintf(`
-// 		{
-// 		  "json_class": "Pact::SomethingLike",
-// 		  "contents": %v
-// 		}`, content)
-// }
-
 // Term specifies that the matching should generate a value
 // and also match using a regular expression.
 // Synonym of Regex.
@@ -271,27 +279,6 @@ func Term(generate string, matcher string) string {
 			  }
 			}
 		}`, generate, matcher)
-}
-
-// Regex specifies that the matching should generate a value
-// and also match using a regular expression.
-// Synonym of Term.
-func Regex(generate string, matcher string) string {
-	return Term(generate, matcher)
-}
-
-// MinType executes a type based match against the values, that is, they are
-// equal if they are the same type. In addition, if the values represent a
-// collection, the length of the actual value is compared against the minimum.
-func MinType(content interface{}, min int) string {
-	return ""
-}
-
-// MaxType executes a type based match against the values, that is, they are
-// equal if they are the same type. In addition, if the values represent a
-// collection, the length of the actual value is compared against the maximum.
-func MaxType(content interface{}, max int) string {
-	return ""
 }
 
 // Matching generation rules

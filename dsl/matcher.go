@@ -75,7 +75,7 @@ type matchingRuleType map[string]matcherType
 // The Matcher part will be the right hand side of a matchingRule declaration
 // The Value part will be used in the example body/header/request/etc.
 type Matcher struct {
-	// Matcher gets the matching strategy associated with the current Matcher.
+	// Matcher contains the matching strategy associated with the current Matcher.
 	Matcher matcherType
 
 	// Value to be serialised to JSON. This value is what is used in the example
@@ -155,9 +155,9 @@ func Like(content interface{}) Matcher {
 	}
 }
 
-// PactTerm specifies that the given content type should be matched based
+// Regex specifies that the given content type should be matched based
 // on a regular expression.
-func PactTerm(matcher string, content interface{}) Matcher {
+func Regex(matcher string, content interface{}) Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "regex",
@@ -168,30 +168,22 @@ func PactTerm(matcher string, content interface{}) Matcher {
 	}
 }
 
-// PactDslBuilder contains the struct generates examples and matching rules
+// PactBody contains the struct generates examples and matching rules
 // given a structure containing matchers.
-type PactDslBuilder struct {
+type PactBody struct {
 	// Matching rules used by the verifier to confirm Provider confirms to Pact.
 	MatchingRules matchingRuleType `json:"matchingRules"`
 
 	// Generated test body for the consumer testing via the Mock Server.
 	Body map[string]interface{} `json:"body"`
-
-	path string
 }
 
-// BuildPact takes a map containing recursive Matchers and generates the rules
+// PactBodyBuilder takes a map containing recursive Matchers and generates the rules
 // to be serialised into the Pact file.
-func BuildPact(root map[string]interface{}) PactDslBuilder {
-
-	dsl := PactDslBuilder{}
-	dsl.path = "$.body"
-	// Recurse through the matcher, updating path as we go
-
-	// 1.1 Recurse through Matcher, building generated body first
-	// 1.2 Update PATH as we go -> deferred
-
-	dsl.path, dsl.Body, dsl.MatchingRules = build("", root, make(map[string]interface{}), dsl.path, make(matchingRuleType))
+func PactBodyBuilder(root map[string]interface{}) PactBody {
+	dsl := PactBody{}
+	_, dsl.Body, dsl.MatchingRules = build("", root, make(map[string]interface{}),
+		"$.body", make(matchingRuleType))
 
 	return dsl
 }
@@ -205,7 +197,7 @@ const endList = "]"
 // the Pact file. Ideally this stays as a pure function, but probably might need
 // to store matchers externally.
 //
-// See PactBodyBuilder.groovy line 96 for inspiration/logic.
+// See PactBody.groovy line 96 for inspiration/logic.
 //
 // Arguments:
 // 	- key           => Current key in the body to set
@@ -213,10 +205,8 @@ const endList = "]"
 // 	- body          => Current state of the body map
 // 	- path          => Path to the current key
 //  - matchingRules => Current set of matching rules
-//
-// TODO: Should return a DSL/Some object that encapsulates the path, matchers and body???
-//
-func build(key string, value interface{}, body map[string]interface{}, path string, matchingRules matchingRuleType) (string, map[string]interface{}, matchingRuleType) {
+func build(key string, value interface{}, body map[string]interface{}, path string,
+	matchingRules matchingRuleType) (string, map[string]interface{}, matchingRuleType) {
 	log.Println("[DEBUG] dsl generator: recursing => key:", key, ", body:", body, ", value: ", value)
 
 	switch t := value.(type) {

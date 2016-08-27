@@ -144,3 +144,65 @@ func TestInteraction_toObject(t *testing.T) {
 		t.Fatalf("Expected '' but got '%s'", content)
 	}
 }
+
+func TestInteraction_WithPactBodyBuilderRequestAsBody(t *testing.T) {
+	matcher := map[string]interface{}{
+		"user": map[string]interface{}{
+			"phone":     Regex("\\d+", 12345678),
+			"name":      Regex("\\s+", "someusername"),
+			"address":   Regex("\\s+", "some address"),
+			"plaintext": "plaintext",
+		},
+		"pass": Regex("\\d+", 1234),
+	}
+
+	// Pass in plain string, should be left alone
+	i := (&Interaction{}).
+		Given("Some state").
+		UponReceiving("Some name for the test").
+		WithRequest(Request{
+			Body: PactBodyBuilder(matcher),
+		})
+	expected := formatJSON(`{
+		"request": {
+			"method": "",
+			"path": "",
+			"body": {
+				"pass": 1234,
+				"user": {
+					"address": "some address",
+					"name": "someusername",
+					"phone": 12345678,
+					"plaintext": "plaintext"
+				}
+			}
+		},
+		"response": {
+			"status": 0
+		},
+		"description": "Some name for the test",
+		"provider_state": "Some state",
+		"matchingRules": {
+			"$.body.pass": {
+				"match": "regex",
+				"regex": "\\d+"
+			},
+			"$.body.user.address": {
+				"match": "regex",
+				"regex": "\\s+"
+			},
+			"$.body.user.name": {
+				"match": "regex",
+				"regex": "\\s+"
+			},
+			"$.body.user.phone": {
+				"match": "regex",
+				"regex": "\\d+"
+			}
+		}
+	}`)
+
+	if expected != formatJSONObject(i) {
+		t.Fatalf("Expected %s, got %s", expected, formatJSONObject(i))
+	}
+}

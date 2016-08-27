@@ -10,7 +10,7 @@ import (
 func TestMatcher_ArrayMinLike(t *testing.T) {
 	matcher := map[string]interface{}{
 		"users": ArrayMinLike(3, map[string]interface{}{
-			"user": PactTerm("\\s+", "someusername")})}
+			"user": Regex("\\s+", "someusername")})}
 
 	expectedBody := formatJSON(`{
 		"users": [
@@ -36,21 +36,21 @@ func TestMatcher_ArrayMinLike(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher)
+	result := formatJSONObject(body.Body)
 
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
 	}
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 }
 
 func TestMatcher_ArrayMaxLike(t *testing.T) {
 	matcher := map[string]interface{}{
 		"users": ArrayMaxLike(3, map[string]interface{}{
-			"user": PactTerm("\\s+", "someusername")})}
+			"user": Regex("\\s+", "someusername")})}
 
 	expectedBody := formatJSON(`{
 		"users": [
@@ -76,26 +76,26 @@ func TestMatcher_ArrayMaxLike(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher)
+	result := formatJSONObject(body.Body)
 
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
 	}
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 }
 
 func TestMatcher_NestedMaps(t *testing.T) {
 	matcher := map[string]interface{}{
 		"user": map[string]interface{}{
-			"phone":     PactTerm("\\d+", 12345678),
-			"name":      PactTerm("\\s+", "someusername"),
-			"address":   PactTerm("\\s+", "some address"),
+			"phone":     Regex("\\d+", 12345678),
+			"name":      Regex("\\s+", "someusername"),
+			"address":   Regex("\\s+", "some address"),
 			"plaintext": "plaintext",
 		},
-		"pass": PactTerm("\\d+", 1234),
+		"pass": Regex("\\d+", 1234),
 	}
 
 	expectedBody := formatJSON(`{
@@ -126,25 +126,25 @@ func TestMatcher_NestedMaps(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher)
+	result := formatJSONObject(body.Body)
 
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
 	}
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 }
 
 func TestMatcher_Arrays(t *testing.T) {
 	matcher := map[string]interface{}{
 		"users": []interface{}{
-			PactTerm("\\s+", "someusername1"),
-			PactTerm("\\s+", "someusername2"),
-			PactTerm("\\s+", "someusername3"),
+			Regex("\\s+", "someusername1"),
+			Regex("\\s+", "someusername2"),
+			Regex("\\s+", "someusername3"),
 		},
-		"pass": PactTerm("\\d+", 1234),
+		"pass": Regex("\\d+", 1234),
 		"id":   5678,
 	}
 	expectedBody := formatJSON(`{
@@ -175,14 +175,14 @@ func TestMatcher_Arrays(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher)
+	result := formatJSONObject(body.Body)
 
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
 	}
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 }
 
@@ -218,20 +218,20 @@ func TestMatcher_Like(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher)
+	result := formatJSONObject(body.Body)
 
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
 	}
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 }
 
-func TestMatcher_Term(t *testing.T) {
+func TestMatcher_Regex(t *testing.T) {
 	matcher := map[string]interface{}{
-		"user": PactTerm("\\s+", "someusername3"),
+		"user": Regex("\\s+", "someusername3"),
 	}
 	expectedBody := formatJSON(`{
 		"user":	"someusername3"
@@ -243,21 +243,21 @@ func TestMatcher_Term(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher)
+	result := formatJSONObject(body.Body)
 
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
 	}
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 }
 
 func TestMatcher_DeepArrayMinLike(t *testing.T) {
 	matcher1 := map[string]interface{}{
 		"users": ArrayMinLike(3, map[string]interface{}{
-			"user": PactTerm("\\s+", "someusername")})}
+			"user": Regex("\\s+", "someusername")})}
 	matcher2 := map[string]interface{}{
 		"users": ArrayMinLike(3, map[string]interface{}{
 			"user": matcher1})}
@@ -285,14 +285,45 @@ func TestMatcher_DeepArrayMinLike(t *testing.T) {
 		},
 	}
 
-	dsl := BuildPact(matcher3)
-	result := formatJSONObject(dsl.Body)
+	body := PactBodyBuilder(matcher3)
+	result := formatJSONObject(body.Body)
 
-	if !reflect.DeepEqual(dsl.MatchingRules, expectedMatchingRules) {
-		t.Fatalf("got '%v' wanted '%v'", dsl.MatchingRules, expectedMatchingRules)
+	if !reflect.DeepEqual(body.MatchingRules, expectedMatchingRules) {
+		t.Fatalf("got '%v' wanted '%v'", body.MatchingRules, expectedMatchingRules)
 	}
 	if expectedBody != result {
 		t.Fatalf("got '%v' wanted '%v'", result, expectedBody)
+	}
+}
+
+func TestMatcher_SerialisePactFile(t *testing.T) {
+	matcher := map[string]interface{}{
+		"users": []interface{}{
+			Like("someusername1"),
+		},
+		"pass": Like(1234),
+		"id":   5678,
+	}
+	expected := formatJSON(`{
+			"matchingRules": {
+				"$.body.pass": {
+					"match": "type"
+				},
+				"$.body.users[0]": {
+					"match": "type"
+				}
+			},
+			"body": {
+				"id": 5678,
+				"pass": 1234,
+				"users": [
+					"someusername1"
+				]
+			}
+		}`)
+	body := PactBodyBuilder(matcher)
+	if expected != formatJSONObject(body) {
+		t.Fatalf("wanted %s, got %s", expected, formatJSONObject(body))
 	}
 }
 

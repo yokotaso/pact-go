@@ -7,14 +7,10 @@ import (
 	"net/rpc"
 	"os"
 	"os/exec"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/pact-foundation/pact-go/daemon"
-	"github.com/pact-foundation/pact-go/types"
-	"github.com/pact-foundation/pact-go/utils"
 )
 
 // Use this to wait for a daemon to be running prior
@@ -113,101 +109,101 @@ func createDaemon(port int, success bool) (*daemon.Daemon, *daemon.ServiceMock) 
 	return d, svc
 }
 
-func TestClient_List(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	createDaemon(port, true)
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-	client := &PactClient{Port: port}
+// func TestClient_List(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	createDaemon(port, true)
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	s := client.ListServers()
+//
+// 	if len(s.Servers) != 3 {
+// 		t.Fatalf("Expected 3 server to be running, got %d", len(s.Servers))
+// 	}
+// }
 
-	s := client.ListServers()
-
-	if len(s.Servers) != 3 {
-		t.Fatalf("Expected 3 server to be running, got %d", len(s.Servers))
-	}
-}
-
-func TestClient_ListFail(t *testing.T) {
-	timeoutDuration = 50 * time.Millisecond
-	client := &PactClient{ /* don't supply port */ }
-	client.StartServer([]string{})
-	list := client.ListServers()
-
-	if len(list.Servers) != 0 {
-		t.Fatalf("Expected 0 servers, got %d", len(list.Servers))
-	}
-	timeoutDuration = oldTimeoutDuration
-}
-
-func TestClient_StartServer(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	_, svc := createDaemon(port, true)
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-	client := &PactClient{Port: port}
-
-	client.StartServer([]string{})
-	if svc.ServiceStartCount != 1 {
-		t.Fatalf("Expected 1 server to have been started, got %d", svc.ServiceStartCount)
-	}
-}
-
-func TestClient_StartServerRPCError(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	createDaemon(port, true)
-
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-
-	// Mock out the RPC client
-	oldCommandStartServer := commandStartServer
-	oldCommandStopServer := commandStopServer
-	oldCommandVerifyProvider := commandVerifyProvider
-	oldCommandListServers := commandListServers
-	oldCommandStopDaemon := commandStopDaemon
-
-	commandStartServer = "failcommand"
-	commandStopServer = "failcommand"
-	commandVerifyProvider = "failverifycommand"
-	commandListServers = "failcommand"
-	commandStopDaemon = "failcommand"
-
-	defer func() {
-		commandStartServer = oldCommandStartServer
-		commandStopServer = oldCommandStopServer
-		commandVerifyProvider = oldCommandVerifyProvider
-		commandListServers = oldCommandListServers
-		commandStopDaemon = oldCommandStopDaemon
-	}()
-
-	client := &PactClient{Port: port}
-	testCases := map[interface{}]func() interface{}{
-		"rpc: service/method request ill-formed: failcommand": func() interface{} {
-			return client.StopDaemon().Error()
-		},
-		&types.MockServer{}: func() interface{} {
-			return client.StopServer(&types.MockServer{})
-		},
-		&types.MockServer{}: func() interface{} {
-			return client.StartServer([]string{})
-		},
-		&types.PactListResponse{}: func() interface{} {
-			return client.ListServers()
-		},
-		"rpc: service/method request ill-formed: failverifycommand": func() interface{} {
-			_, err := client.VerifyProvider(types.VerifyRequest{})
-			return err.Error()
-		},
-	}
-
-	for expected, testCase := range testCases {
-		res := testCase()
-		if !reflect.DeepEqual(expected, res) {
-			t.Fatalf("Expected '%v' but got '%v'", expected, res)
-		}
-	}
-}
-
+// func TestClient_ListFail(t *testing.T) {
+// 	timeoutDuration = 50 * time.Millisecond
+// 	client := &PactClient{ /* don't supply port */ }
+// 	client.StartServer([]string{})
+// 	list := client.ListServers()
+//
+// 	if len(list.Servers) != 0 {
+// 		t.Fatalf("Expected 0 servers, got %d", len(list.Servers))
+// 	}
+// 	timeoutDuration = oldTimeoutDuration
+// }
+//
+// func TestClient_StartServer(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	_, svc := createDaemon(port, true)
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	client.StartServer([]string{})
+// 	if svc.ServiceStartCount != 1 {
+// 		t.Fatalf("Expected 1 server to have been started, got %d", svc.ServiceStartCount)
+// 	}
+// }
+//
+// func TestClient_StartServerRPCError(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	createDaemon(port, true)
+//
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+//
+// 	// Mock out the RPC client
+// 	oldCommandStartServer := commandStartServer
+// 	oldCommandStopServer := commandStopServer
+// 	oldCommandVerifyProvider := commandVerifyProvider
+// 	oldCommandListServers := commandListServers
+// 	oldCommandStopDaemon := commandStopDaemon
+//
+// 	commandStartServer = "failcommand"
+// 	commandStopServer = "failcommand"
+// 	commandVerifyProvider = "failverifycommand"
+// 	commandListServers = "failcommand"
+// 	commandStopDaemon = "failcommand"
+//
+// 	defer func() {
+// 		commandStartServer = oldCommandStartServer
+// 		commandStopServer = oldCommandStopServer
+// 		commandVerifyProvider = oldCommandVerifyProvider
+// 		commandListServers = oldCommandListServers
+// 		commandStopDaemon = oldCommandStopDaemon
+// 	}()
+//
+// 	client := &PactClient{Port: port}
+// 	testCases := map[interface{}]func() interface{}{
+// 		"rpc: service/method request ill-formed: failcommand": func() interface{} {
+// 			return client.StopDaemon().Error()
+// 		},
+// 		&types.MockServer{}: func() interface{} {
+// 			return client.StopServer(&types.MockServer{})
+// 		},
+// 		&types.MockServer{}: func() interface{} {
+// 			return client.StartServer([]string{})
+// 		},
+// 		&types.PactListResponse{}: func() interface{} {
+// 			return client.ListServers()
+// 		},
+// 		"rpc: service/method request ill-formed: failverifycommand": func() interface{} {
+// 			_, err := client.VerifyProvider(types.VerifyRequest{})
+// 			return err.Error()
+// 		},
+// 	}
+//
+// 	for expected, testCase := range testCases {
+// 		res := testCase()
+// 		if !reflect.DeepEqual(expected, res) {
+// 			t.Fatalf("Expected '%v' but got '%v'", expected, res)
+// 		}
+// 	}
+// }
+//
 func TestClient_getPort(t *testing.T) {
 	testCases := map[string]int{
 		"http://localhost:8000": 8000,
@@ -223,136 +219,137 @@ func TestClient_getPort(t *testing.T) {
 	}
 }
 
-func TestClient_VerifyProvider(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	createDaemon(port, true)
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-	client := &PactClient{Port: port}
-
-	ms := setupMockServer(true, t)
-	defer ms.Close()
-
-	req := types.VerifyRequest{
-		ProviderBaseURL:        ms.URL,
-		PactURLs:               []string{"foo.json", "bar.json"},
-		BrokerUsername:         "foo",
-		BrokerPassword:         "foo",
-		ProviderStatesURL:      "http://foo/states",
-		ProviderStatesSetupURL: "http://foo/states/setup",
-	}
-	_, err := client.VerifyProvider(req)
-
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
-}
-
-func TestClient_VerifyProviderFailValidation(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	createDaemon(port, true)
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-	client := &PactClient{Port: port}
-
-	req := types.VerifyRequest{}
-	_, err := client.VerifyProvider(req)
-
-	if err == nil {
-		t.Fatal("Expected a error but got none")
-	}
-
-	if !strings.Contains(err.Error(), "ProviderBaseURL is mandatory") {
-		t.Fatalf("Expected a proper error message but got '%s'", err.Error())
-	}
-}
-
-func TestClient_VerifyProviderFailExecution(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	createDaemon(port, false)
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-	client := &PactClient{Port: port}
-
-	ms := setupMockServer(true, t)
-	defer ms.Close()
-
-	req := types.VerifyRequest{
-		ProviderBaseURL: ms.URL,
-		PactURLs:        []string{"foo.json", "bar.json"},
-	}
-	_, err := client.VerifyProvider(req)
-
-	if err == nil {
-		t.Fatal("Expected a error but got none")
-	}
-
-	if !strings.Contains(err.Error(), "COMMAND: oh noes!") {
-		t.Fatalf("Expected a proper error message but got '%s'", err.Error())
-	}
-}
-
-var oldTimeoutDuration = timeoutDuration
-
-func TestClient_StartServerFail(t *testing.T) {
-	timeoutDuration = 50 * time.Millisecond
-
-	client := &PactClient{ /* don't supply port */ }
-	server := client.StartServer([]string{})
-	if server.Port != 0 {
-		t.Fatalf("Expected server to be empty %v", server)
-	}
-	timeoutDuration = oldTimeoutDuration
-}
-
-func TestClient_StopServer(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	_, svc := createDaemon(port, true)
-	waitForPortInTest(port, t)
-	defer waitForDaemonToShutdown(port, t)
-	client := &PactClient{Port: port}
-
-	client.StopServer(&types.MockServer{})
-	if svc.ServiceStopCount != 1 {
-		t.Fatalf("Expected 1 server to have been stopped, got %d", svc.ServiceStartCount)
-	}
-}
-
-func TestClient_StopServerFail(t *testing.T) {
-	timeoutDuration = 50 * time.Millisecond
-	client := &PactClient{ /* don't supply port */ }
-	res := client.StopServer(&types.MockServer{})
-	should := &types.MockServer{}
-	if !reflect.DeepEqual(res, should) {
-		t.Fatalf("Expected nil object but got a difference: %v != %v", res, should)
-	}
-	timeoutDuration = oldTimeoutDuration
-}
-
-func TestClient_StopDaemon(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	createDaemon(port, true)
-	waitForPortInTest(port, t)
-	client := &PactClient{Port: port}
-
-	err := client.StopDaemon()
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
-	waitForDaemonToShutdown(port, t)
-}
-
-func TestClient_StopDaemonFail(t *testing.T) {
-	timeoutDuration = 50 * time.Millisecond
-	client := &PactClient{ /* don't supply port */ }
-	err := client.StopDaemon()
-	if err == nil {
-		t.Fatalf("Expected error but got none")
-	}
-	timeoutDuration = oldTimeoutDuration
-}
-
-// Adapted from http://npf.io/2015/06/testing-exec-command/
+//
+// func TestClient_VerifyProvider(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	createDaemon(port, true)
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	ms := setupMockServer(true, t)
+// 	defer ms.Close()
+//
+// 	req := types.VerifyRequest{
+// 		ProviderBaseURL:        ms.URL,
+// 		PactURLs:               []string{"foo.json", "bar.json"},
+// 		BrokerUsername:         "foo",
+// 		BrokerPassword:         "foo",
+// 		ProviderStatesURL:      "http://foo/states",
+// 		ProviderStatesSetupURL: "http://foo/states/setup",
+// 	}
+// 	_, err := client.VerifyProvider(req)
+//
+// 	if err != nil {
+// 		t.Fatal("Error: ", err)
+// 	}
+// }
+//
+// func TestClient_VerifyProviderFailValidation(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	createDaemon(port, true)
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	req := types.VerifyRequest{}
+// 	_, err := client.VerifyProvider(req)
+//
+// 	if err == nil {
+// 		t.Fatal("Expected a error but got none")
+// 	}
+//
+// 	if !strings.Contains(err.Error(), "ProviderBaseURL is mandatory") {
+// 		t.Fatalf("Expected a proper error message but got '%s'", err.Error())
+// 	}
+// }
+//
+// func TestClient_VerifyProviderFailExecution(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	createDaemon(port, false)
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	ms := setupMockServer(true, t)
+// 	defer ms.Close()
+//
+// 	req := types.VerifyRequest{
+// 		ProviderBaseURL: ms.URL,
+// 		PactURLs:        []string{"foo.json", "bar.json"},
+// 	}
+// 	_, err := client.VerifyProvider(req)
+//
+// 	if err == nil {
+// 		t.Fatal("Expected a error but got none")
+// 	}
+//
+// 	if !strings.Contains(err.Error(), "COMMAND: oh noes!") {
+// 		t.Fatalf("Expected a proper error message but got '%s'", err.Error())
+// 	}
+// }
+//
+// var oldTimeoutDuration = timeoutDuration
+//
+// func TestClient_StartServerFail(t *testing.T) {
+// 	timeoutDuration = 50 * time.Millisecond
+//
+// 	client := &PactClient{ /* don't supply port */ }
+// 	server := client.StartServer([]string{})
+// 	if server.Port != 0 {
+// 		t.Fatalf("Expected server to be empty %v", server)
+// 	}
+// 	timeoutDuration = oldTimeoutDuration
+// }
+//
+// func TestClient_StopServer(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	_, svc := createDaemon(port, true)
+// 	waitForPortInTest(port, t)
+// 	defer waitForDaemonToShutdown(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	client.StopServer(&types.MockServer{})
+// 	if svc.ServiceStopCount != 1 {
+// 		t.Fatalf("Expected 1 server to have been stopped, got %d", svc.ServiceStartCount)
+// 	}
+// }
+//
+// func TestClient_StopServerFail(t *testing.T) {
+// 	timeoutDuration = 50 * time.Millisecond
+// 	client := &PactClient{ /* don't supply port */ }
+// 	res := client.StopServer(&types.MockServer{})
+// 	should := &types.MockServer{}
+// 	if !reflect.DeepEqual(res, should) {
+// 		t.Fatalf("Expected nil object but got a difference: %v != %v", res, should)
+// 	}
+// 	timeoutDuration = oldTimeoutDuration
+// }
+//
+// func TestClient_StopDaemon(t *testing.T) {
+// 	port, _ := utils.GetFreePort()
+// 	createDaemon(port, true)
+// 	waitForPortInTest(port, t)
+// 	client := &PactClient{Port: port}
+//
+// 	err := client.StopDaemon()
+// 	if err != nil {
+// 		t.Fatalf("Err: %v", err)
+// 	}
+// 	waitForDaemonToShutdown(port, t)
+// }
+//
+// func TestClient_StopDaemonFail(t *testing.T) {
+// 	timeoutDuration = 50 * time.Millisecond
+// 	client := &PactClient{ /* don't supply port */ }
+// 	err := client.StopDaemon()
+// 	if err == nil {
+// 		t.Fatalf("Expected error but got none")
+// 	}
+// 	timeoutDuration = oldTimeoutDuration
+// }
+//
+// // Adapted from http://npf.io/2015/06/testing-exec-command/
 var fakeExecSuccessCommand = func() *exec.Cmd {
 	return fakeExecCommand("", true, "")
 }

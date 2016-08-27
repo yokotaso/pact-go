@@ -1,5 +1,48 @@
 package dsl
 
+import (
+	"fmt"
+	"testing"
+)
+
+func Test_NativeMockServer(t *testing.T) {
+	matcher := map[string]interface{}{
+		"user": map[string]interface{}{
+			"phone":     Regex("\\d+", 12345678),
+			"name":      Regex("\\s+", "someusername"),
+			"address":   Regex("\\s+", "some address"),
+			"plaintext": "plaintext",
+		},
+		"pass": Regex("\\d+", 1234),
+	}
+
+	pact := Pact{
+		Port:     6666,
+		Consumer: "billy",
+		Provider: "bobby",
+		LogLevel: "ERROR",
+		LogDir:   "logs",
+		PactDir:  "pacts",
+	}
+
+	pact.AddInteraction().
+		Given("Some state").
+		UponReceiving("Some name for the test").
+		WithRequest(Request{
+			Path:   "/",
+			Method: "GET",
+			Body:   PactBodyBuilder(matcher),
+		})
+
+	res := pact.Verify(func() error {
+		fmt.Println("Verifying (should fail)")
+		return nil
+	})
+	if res == nil {
+		t.Fatalf("want error but got none")
+	}
+}
+
 //
 // import (
 // 	"fmt"

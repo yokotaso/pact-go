@@ -22,7 +22,7 @@ type Interaction struct {
 
 	// MatchingRules contains all of the specific matching rules extracted
 	// from the Interaction matchers.
-	MatchingRules map[string]string `json:"matchingRules,omitempty"`
+	MatchingRules matchingRuleType `json:"matchingRules,omitempty"`
 }
 
 // Given specifies a provider state. Optional.
@@ -50,8 +50,11 @@ func (p *Interaction) WithRequest(request Request) *Interaction {
 	switch content := request.Body.(type) {
 	case string:
 		p.Request.Body = toObject([]byte(content))
+	case PactBody:
+		log.Println("[DEBUG] Pact Body builder!")
+		p.Request.Body = content.Body
+		p.MatchingRules = content.MatchingRules
 	default:
-		// TODO: Check for a builder type and handle here???
 		// leave alone
 	}
 

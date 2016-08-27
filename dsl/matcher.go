@@ -25,13 +25,49 @@ package dsl
 //       ]
 //     }
 // 	}
+
+// Matcher types supported by JVM:
+//
+// method	                    description
+// string, stringValue				Match a string value (using string equality)
+// number, numberValue				Match a number value (using Number.equals)*
+// booleanValue								Match a boolean value (using equality)
+// stringType									Will match all Strings
+// numberType									Will match all numbers*
+// integerType								Will match all numbers that are integers (both ints and longs)*
+// decimalType								Will match all real numbers (floating point and decimal)*
+// booleanType								Will match all boolean values (true and false)
+// stringMatcher							Will match strings using the provided regular expression
+// timestamp									Will match string containing timestamps. If a timestamp format is not given, will match an ISO timestamp format
+// date												Will match string containing dates. If a date format is not given, will match an ISO date format
+// time												Will match string containing times. If a time format is not given, will match an ISO time format
+// ipAddress									Will match string containing IP4 formatted address.
+// id													Will match all numbers by type
+// hexValue										Will match all hexadecimal encoded strings
+// uuid												Will match strings containing UUIDs
+
+// RULES I'd like to follow:
+// 0. Allow the option of string bodies for simple things
+// 1. Have all of the matchers deal with interfaces{} for their values (or a Matcher/Builder type interface)
+//    - Interfaces may turn out to be primitives like strings, ints etc. (valid JSON values I guess)
+// 2. Make all matcher values serialise as map[string]interface{} to be able to easily convert to JSON,
+//    and allows simpler interspersing of builder logic
+//    - can we embed builders in maps??
+// 3. Keep the matchers/builders simple, and orchestrate them from another class/func/place
+//    Candidates are:
+//    - Interaction
+//    - Some new DslBuilder thingo
 import (
 	"fmt"
 	"log"
+	"strconv"
 )
 
 // matcherType is essentially a key value JSON pairs for serialisation
 type matcherType map[string]interface{}
+
+// Matching Rule
+type matchingRuleType map[string]matcherType
 
 // Matcher is responsible for generating Pact values and matching in the Pact file.
 // It can be used as an alternative to plain string matches in the DSL.
@@ -93,10 +129,10 @@ func ArrayMinLike(min int, value interface{}) Matcher {
 	}
 }
 
-// ArrayMaxlike matches nested arrays in request bodies.
+// ArrayMaxLike matches nested arrays in request bodies.
 // Ensure that each item in the list matches the provided example and the list
 // is no greater than the provided max.
-func ArrayMaxlike(max int, value interface{}) Matcher {
+func ArrayMaxLike(max int, value interface{}) Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"max":   max,
@@ -136,7 +172,7 @@ func PactTerm(matcher string, content interface{}) Matcher {
 // given a structure containing matchers.
 type PactDslBuilder struct {
 	// Matching rules used by the verifier to confirm Provider confirms to Pact.
-	MatchingRules map[string]string `json:"matchingRules"`
+	MatchingRules matchingRuleType `json:"matchingRules"`
 
 	// Generated test body for the consumer testing via the Mock Server.
 	Body map[string]interface{} `json:"body"`
@@ -150,13 +186,12 @@ func BuildPact(root map[string]interface{}) PactDslBuilder {
 
 	dsl := PactDslBuilder{}
 	dsl.path = "$.body"
-	body := make(map[string]interface{})
 	// Recurse through the matcher, updating path as we go
 
 	// 1.1 Recurse through Matcher, building generated body first
 	// 1.2 Update PATH as we go -> deferred
 
-	dsl.path, dsl.Body = build("", root, body, dsl.path)
+	dsl.path, dsl.Body, dsl.MatchingRules = build("", root, make(map[string]interface{}), dsl.path, make(matchingRuleType))
 
 	return dsl
 }
@@ -166,23 +201,23 @@ const allListItems = "[*]"
 const startList = "["
 const endList = "]"
 
-// Store all of the matchers in here
-var matchers map[string]matcherType
-
 // Recurse the Matcher tree and build up an example body and set of matchers for
 // the Pact file. Ideally this stays as a pure function, but probably might need
 // to store matchers externally.
 //
-// Update path to the specific path -> Path
 // See PactBodyBuilder.groovy line 96 for inspiration/logic.
 //
 // Arguments:
-// 	- key => Current key in the body to set
-// 	- value => Value held in the next Matcher (which may be another Matcher)
-// 	- body => Current state of the body map
-// 	- path => Path to the current key TODO: Path not doing anything yet.
-func build(key string, value interface{}, body map[string]interface{}, path string) (string, map[string]interface{}) {
-	fmt.Println("Recursing => key:", key, ", body:", body, ", value: ", value)
+// 	- key           => Current key in the body to set
+// 	- value         => Value held in the next Matcher (which may be another Matcher)
+// 	- body          => Current state of the body map
+// 	- path          => Path to the current key
+//  - matchingRules => Current set of matching rules
+//
+// TODO: Should return a DSL/Some object that encapsulates the path, matchers and body???
+//
+func build(key string, value interface{}, body map[string]interface{}, path string, matchingRules matchingRuleType) (string, map[string]interface{}, matchingRuleType) {
+	log.Println("[DEBUG] dsl generator: recursing => key:", key, ", body:", body, ", value: ", value)
 
 	switch t := value.(type) {
 
@@ -202,17 +237,25 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 			arrayMap := make(map[string]interface{})
 			minArray := make([]interface{}, times)
 
-			build("0", t.Value, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, 0, endList)))
+			build("0", t.Value, arrayMap, path+buildPath(key, allListItems), matchingRules)
+			log.Println("[DEBUG] dsl generator: adding matcher (arrayLike) =>", path+buildPath(key, ""))
+			matchingRules[path+buildPath(key, "")] = t.Matcher
+
+			// TODO: Need to understand the .* notation before implementing it. Notably missing from Groovy DSL
+			// log.Println("[DEBUG] dsl generator: Adding matcher (type)              =>", path+buildPath(key, allListItems)+".*")
+			// matchingRules[path+buildPath(key, allListItems)+".*"] = t.Matcher
+
 			for i := 0; i < times; i++ {
 				minArray[i] = arrayMap["0"]
 			}
 			body[key] = minArray
+			path = path + buildPath(key, "")
 
 			// Simple Matchers (Terminal cases)
-		case TermMatcher:
+		case TermMatcher, LikeMatcher:
 			body[key] = t.Value
-		case LikeMatcher:
-			body[key] = t.Value
+			log.Println("[DEBUG] dsl generator: adding matcher (Term/Like)         =>", path+buildPath(key, ""))
+			matchingRules[path+buildPath(key, "")] = t.Matcher
 		default:
 			log.Fatalf("unknown matcher: %d", t.Type)
 		}
@@ -222,9 +265,11 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 		arrayValues := make([]interface{}, len(t))
 		arrayMap := make(map[string]interface{})
 
+		// This is a real hack. I don't like it
+		// I also had to do it for the Array*LikeMatcher's, which I also don't like
 		for i, el := range t {
 			k := fmt.Sprintf("%d", i)
-			build(k, el, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList)))
+			build(k, el, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList)), matchingRules)
 			arrayValues[i] = arrayMap[k]
 		}
 		body[key] = arrayValues
@@ -232,167 +277,38 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 	// Map -> Recurse keys (All objects start here!)
 	case map[string]interface{}:
 		entry := make(map[string]interface{})
+		path = path + buildPath(key, "")
 
 		for k, v := range t {
-			fmt.Println("\t=> Map type. recursing into key =>", k)
+			log.Println("[DEBUG] dsl generator: \t=> map type. recursing into key =>", k)
 
 			// Starting position
 			if key == "" {
-				_, body = build(k, v, copyMap(body), path)
+				_, body, matchingRules = build(k, v, copyMap(body), path, matchingRules)
 			} else {
-				_, body[key] = build(k, v, entry, path)
+				_, body[key], matchingRules = build(k, v, entry, path, matchingRules)
 			}
 		}
 
 	// Primitives (terminal cases)
 	default:
-		fmt.Println("\t=> Unknown type. Probably just a primitive (string/int/etc.)", value)
+		log.Println("[DEBUG] dsl generator: \t=> unknown type, probably just a primitive (string/int/etc.)", value)
 		body[key] = value
 	}
 
-	fmt.Println("Returning body: ", body)
+	log.Println("[DEBUG] dsl generator: returning body: ", body)
 
-	return path, body
+	return path, body, matchingRules
 }
 
 // TODO: allow regex in paths.
 func buildPath(name string, children string) string {
-	return name + children
+	// We know if a key is an integer, it's not valid JSON and therefore is Probably
+	// the shitty array hack from above. Skip creating a new path if the key is bungled
+	// TODO: save the children?
+	if _, err := strconv.Atoi(name); err != nil && name != "" {
+		return pathSep + name + children
+	}
+
+	return ""
 }
-
-// EachLike specifies that a given element in a JSON body can be repeated
-// "minRequired" times. Number needs to be 1 or greater
-func EachLike(content interface{}, minRequired int) string {
-	return fmt.Sprintf(`
-		{
-		  "json_class": "Pact::ArrayLike",
-		  "contents": %v,
-		  "min": %d
-		}`, content, minRequired)
-}
-
-// Term specifies that the matching should generate a value
-// and also match using a regular expression.
-// Synonym of Regex.
-func Term(generate string, matcher string) string {
-	return fmt.Sprintf(`
-		{
-			"json_class": "Pact::Term",
-			"data": {
-			  "generate": "%s",
-			  "matcher": {
-			    "json_class": "Regexp",
-			    "o": 0,
-			    "s": "%s"
-			  }
-			}
-		}`, generate, matcher)
-}
-
-// Matching generation rules
-// 1 - matchingRules takes a map of "JSONPath -> Matching Rule Object" (e.g. "$.body.animals": {""})
-//    - 5 types of matchers (https://github.com/pact-foundation/pact-reference/tree/master/rust/libpact_matching#supported-matchers)
-//       - t{"match":"regex", "regex": "red|mblue"}
-//       - t{"match":"type"}
-//    - Need to keep track of the depth in the selectors, which are fairly simplistic
-// 2 - Need to generate the body as the Pact Interactions are done
-
-// type Matcher interface {
-// 	Path string // <- path to the current level? e.g. $.body.foo[*]
-//
-// }
-//
-// Builder {
-// 	matchingRules []
-// 	body interface{}
-//
-//
-// }
-//
-// i := pact.
-// 	AddInteraction()
-//
-// 	// Setup a complex interaction
-// 	jumper := Like(`"jumper"`)
-// 	shirt := Like(`"shirt"`)
-// 	tag := EachLike(fmt.Sprintf(`[%s, %s]`, jumper, shirt), 2)
-// 	size := Like(10)
-// 	colour := Term("red", "red|green|blue")
-//
-// body :=
-// 	// NewJsonDslBody(&i).				// <- needs the Interaction struct to generate matchers as it goes. Returns a string
-// 	NewJsonDslBody().
-// 		ArrayLikeMin(3, "foobararray",
-// 			map[string]string{
-// 				"foo": StringType("foovalue"),
-// 				"bar": IntegerType(27)})
-// 		EachLikeMin(1, "someotherobjectarray",
-// 			fmt.Sprintf(
-// 				`{
-// 					"size": 10,
-// 					"colour": "red",
-// 					"tag": "red"
-// 				}`))
-
-// -> Should produce this generated body
-
-// {
-// 	"foobararray": [
-// 		{
-// 			"foo": "foovalue",
-// 			"bar": 27,
-// 		},
-// 		{
-// 			"foo": "foovalue",
-// 			"bar": 27,
-// 		},
-// 		{
-// 			"foo": "foovalue",
-// 			"bar": 27,
-// 		}
-// 	],
-// 	"someotherobjectarray": [
-// 		{
-// 			"size": 10,
-// 			"colour": "red",
-// 			"tag": "red"
-// 		}
-// 	]
-// }
-
-// -> Should produce the following matching rules:
-// "matchingRules": {
-// 	"$.foobararray": {"min": 3, "match": "type"}
-// 	"$.foobararray[*].*":
-// }
-
-// Types supported by JVM
-// method	description
-// string, stringValue				Match a string value (using string equality)
-// number, numberValue				Match a number value (using Number.equals)*
-// booleanValue								Match a boolean value (using equality)
-// stringType									Will match all Strings
-// numberType									Will match all numbers*
-// integerType								Will match all numbers that are integers (both ints and longs)*
-// decimalType								Will match all real numbers (floating point and decimal)*
-// booleanType								Will match all boolean values (true and false)
-// stringMatcher							Will match strings using the provided regular expression
-// timestamp									Will match string containing timestamps. If a timestamp format is not given, will match an ISO timestamp format
-// date												Will match string containing dates. If a date format is not given, will match an ISO date format
-// time												Will match string containing times. If a time format is not given, will match an ISO time format
-// ipAddress									Will match string containing IP4 formatted address.
-// id													Will match all numbers by type
-// hexValue										Will match all hexadecimal encoded strings
-// uuid												Will match strings containing UUIDs
-
-// RULES I'd like to follow:
-// 0. Allow the option of string bodies for simple things
-// 1. Have all of the matchers deal with interfaces{} for their values (or a Matcher/Builder type interface)
-//    - Interfaces may turn out to be primitives like strings, ints etc. (valid JSON values I guess)
-// 2. Make all matcher values serialise as map[string]interface{} to be able to easily convert to JSON,
-//    and allows simpler interspersing of builder logic
-//    - can we embed builders in maps??
-// 3. Keep the matchers/builders simple, and orchestrate them from another class/func/place
-//    Candidates are:
-//    - Interaction
-//    - Some new DslBuilder thingo

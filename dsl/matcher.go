@@ -81,8 +81,8 @@ func makeArrayContents(times int, key string, value interface{}) jsonArray {
 
 // ArrayMinLike matches nested arrays in request bodies.
 // Ensure that each item in the list matches the provided example and the list
-// is no smaller than the provided min
-func ArrayMinLike(min int, key string, value interface{}) Matcher {
+// is no smaller than the provided min.
+func ArrayMinLike(min int, value interface{}) Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"min":   min,
@@ -95,8 +95,8 @@ func ArrayMinLike(min int, key string, value interface{}) Matcher {
 
 // ArrayMaxlike matches nested arrays in request bodies.
 // Ensure that each item in the list matches the provided example and the list
-// is no smaller than the provided min
-func ArrayMaxlike(max int, key string, value interface{}) Matcher {
+// is no greater than the provided max.
+func ArrayMaxlike(max int, value interface{}) Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"max":   max,
@@ -166,6 +166,9 @@ const allListItems = "[*]"
 const startList = "["
 const endList = "]"
 
+// Store all of the matchers in here
+var matchers map[string]matcherType
+
 // Recurse the Matcher tree and build up an example body and set of matchers for
 // the Pact file. Ideally this stays as a pure function, but probably might need
 // to store matchers externally.
@@ -184,23 +187,34 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 	switch t := value.(type) {
 
 	case Matcher:
-		fmt.Println("=> Matcher")
 		switch t.Type {
 
-		// Like Matchers
-		case ArrayMinLikeMatcher:
-			fmt.Println("\t=> ArrayMinLikeMatcher")
-			// path, body[key] = build(key, t.Value, body, buildPath(path, ""))
-			// build(key, t.Value, body, buildPath(path, ""))
-			// TODO: insert t.Matcher["min"] times the t.Value??
+		// ArrayLike Matchers
+		case ArrayMinLikeMatcher, ArrayMaxLikeMatcher:
+			times := 1
 
-		// Simple Matchers (Terminal cases)
+			if _, ok := t.Matcher["min"]; ok {
+				times = t.Matcher["min"].(int)
+			} else {
+				times = t.Matcher["max"].(int)
+			}
+
+			arrayMap := make(map[string]interface{})
+			minArray := make([]interface{}, times)
+
+			build("0", t.Value, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, 0, endList)))
+			for i := 0; i < times; i++ {
+				minArray[i] = arrayMap["0"]
+			}
+			body[key] = minArray
+
+			// Simple Matchers (Terminal cases)
 		case TermMatcher:
-			fmt.Println("\t=> TermMatcher", t)
+			body[key] = t.Value
+		case LikeMatcher:
 			body[key] = t.Value
 		default:
-			// should probably throw an error here!?
-			log.Fatalf("Unknown matcher detected: %d", t.Type)
+			log.Fatalf("unknown matcher: %d", t.Type)
 		}
 
 	// Slice/Array types
@@ -210,15 +224,15 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 
 		for i, el := range t {
 			k := fmt.Sprintf("%d", i)
-			build(k, el, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList))) // <- matchers
+			build(k, el, arrayMap, path+buildPath(key, fmt.Sprintf("%s%d%s", startList, i, endList)))
 			arrayValues[i] = arrayMap[k]
 		}
 		body[key] = arrayValues
 
-	// Map -> Recurse keys
+	// Map -> Recurse keys (All objects start here!)
 	case map[string]interface{}:
-
 		entry := make(map[string]interface{})
+
 		for k, v := range t {
 			fmt.Println("\t=> Map type. recursing into key =>", k)
 
@@ -226,10 +240,8 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 			if key == "" {
 				_, body = build(k, v, copyMap(body), path)
 			} else {
-				build(k, v, entry, path)
-				body[key] = entry
+				_, body[key] = build(k, v, entry, path)
 			}
-
 		}
 
 	// Primitives (terminal cases)

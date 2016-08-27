@@ -3,29 +3,36 @@ package dsl
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
 func TestMatcher_ArrayMinLike(t *testing.T) {
+	matcher := map[string]interface{}{
+		"users": ArrayMinLike(3, map[string]interface{}{
+			"billy": PactTerm("\\s+", "someusername")})}
 
-	expected := formatJSON(`
-		{
-			"match": "type",
-			"min": 3
-		}`)
+	expected := formatJSON(`{
+		"users": [
+			{
+				"billy": "someusername"
+			},
+			{
+				"billy": "someusername"
+			},
+			{
+				"billy": "someusername"
+			}
+		]
+	}`)
 
-	match := formatJSONObject(ArrayMinLike(3, "passwords", "myawesomeword").Matcher)
-	fmt.Println(formatJSONObject(ArrayMinLike(3, "passwords", map[string]string{"pass": "myawesomeword"})))
+	result := formatJSONObject(BuildPact(matcher).Body)
 
-	if expected != match {
-		t.Fatalf("Expected Term to match. '%s' != '%s'", expected, match)
+	if expected != result {
+		t.Fatalf("got '%s' wanted '%s'", result, expected)
 	}
 }
 
 func TestMatcher_NestedMaps(t *testing.T) {
-	// matcher := ArrayMinLike(3, "passwords", map[string]interface{}{"pass": PactTerm("\\d+", 1234)})
-	// b1 := BuildPact(map[string]interface{}{"users": matcher})
 	matcher := map[string]interface{}{
 		"user": map[string]interface{}{
 			"phone":     PactTerm("\\d+", 12345678),
@@ -35,42 +42,91 @@ func TestMatcher_NestedMaps(t *testing.T) {
 		},
 		"pass": PactTerm("\\d+", 1234),
 	}
-	b1 := BuildPact(matcher)
-	fmt.Println(b1.Body)
-	fmt.Println(formatJSONObject(b1.Body))
+
+	expected := formatJSON(`{
+		"pass": 1234,
+		"user": {
+			"address": "some address",
+			"name": "someusername",
+			"phone": 12345678,
+			"plaintext": "plaintext"
+		}
+	}`)
+
+	result := formatJSONObject(BuildPact(matcher).Body)
+
+	if expected != result {
+		t.Fatalf("got '%s' wanted '%s'", result, expected)
+	}
 }
 
 func TestMatcher_Arrays(t *testing.T) {
-	// matcher := ArrayMinLike(3, "passwords", map[string]interface{}{"pass": PactTerm("\\d+", 1234)})
-	// b1 := BuildPact(map[string]interface{}{"users": matcher})
 	matcher := map[string]interface{}{
 		"users": []interface{}{
 			PactTerm("\\s+", "someusername1"),
 			PactTerm("\\s+", "someusername2"),
 			PactTerm("\\s+", "someusername3"),
 		},
-		// "user": []map[string]interface{}{
-		// 	"name": PactTerm("\\s+", "someusername"),
-		// },
 		"pass": PactTerm("\\d+", 1234),
 	}
-	b1 := BuildPact(matcher)
-	fmt.Println(b1.Body)
-	fmt.Println(formatJSONObject(b1.Body))
+	expected := formatJSON(`{
+		"pass": 1234,
+		"users": [
+			"someusername1",
+			"someusername2",
+			"someusername3"
+		]
+	}`)
 
-	// TODO: make this a table-driven test
-	// b2 := BuildPact(map[string]interface{}{"password": PactTerm("\\d+", 1234)})
-	// expected := map[string]interface{}{
-	// 	"password": 1234,
-	// }
-	// if !reflect.DeepEqual(b2.Body, expected) {
-	// 	t.Fatalf("wanted %v, got %v", expected, b2.Body)
-	// }
+	result := formatJSONObject(BuildPact(matcher).Body)
+
+	if expected != result {
+		t.Fatalf("got '%s' wanted '%s'", result, expected)
+	}
+}
+
+func TestMatcher_Like(t *testing.T) {
+	matcher := map[string]interface{}{
+		"users": []interface{}{
+			Like("someusername1"),
+			Like("someusername2"),
+			Like("someusername3"),
+		},
+		"pass": Like(1234),
+	}
+	expected := formatJSON(`{
+		"pass": 1234,
+		"users": [
+			"someusername1",
+			"someusername2",
+			"someusername3"
+		]
+	}`)
+
+	result := formatJSONObject(BuildPact(matcher).Body)
+
+	if expected != result {
+		t.Fatalf("got '%s' wanted '%s'", result, expected)
+	}
+}
+
+func TestMatcher_Term(t *testing.T) {
+	matcher := map[string]interface{}{
+		"user": PactTerm("\\s+", "someusername3"),
+	}
+	expected := formatJSON(`{
+		"user":	"someusername3"
+	}`)
+
+	result := formatJSONObject(BuildPact(matcher).Body)
+
+	if expected != result {
+		t.Fatalf("got '%s' wanted '%s'", result, expected)
+	}
 }
 
 // Format a JSON document to make comparison easier.
 func formatJSONObject(object interface{}) string {
-	// var out bytes.Buffer
 	out, _ := json.Marshal(object)
 	return formatJSON(string(out))
 }

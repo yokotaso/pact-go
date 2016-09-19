@@ -104,17 +104,6 @@ const (
 // jsonArray is the type for JSON arrays
 type jsonArray map[string][]interface{}
 
-// Creates sample array contents given an array Matcher.
-func makeArrayContents(times int, key string, value interface{}) jsonArray {
-	contents := make([]interface{}, times)
-	for i := 0; i < times; i++ {
-		contents[i] = value
-	}
-	return jsonArray{
-		key: contents,
-	}
-}
-
 // ArrayMinLike matches nested arrays in request bodies.
 // Ensure that each item in the list matches the provided example and the list
 // is no smaller than the provided min.
@@ -124,7 +113,7 @@ func ArrayMinLike(min int, value interface{}) Matcher {
 			"min":   min,
 			"match": "type",
 		},
-		Value: value, //makeArrayContents(min, key, value),
+		Value: value,
 		Type:  ArrayMinLikeMatcher,
 	}
 }
@@ -291,7 +280,7 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 	return path, body, matchingRules
 }
 
-// TODO: allow regex in paths.
+// TODO: allow regex in request paths.
 func buildPath(name string, children string) string {
 	// We know if a key is an integer, it's not valid JSON and therefore is Probably
 	// the shitty array hack from above. Skip creating a new path if the key is bungled

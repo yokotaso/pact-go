@@ -115,11 +115,29 @@ func TestMockServer_MismatchesFail(t *testing.T) {
 	}
 }
 
-func TestMockServer_Verify(t *testing.T) {
+func TestMockServer_VerifySuccess(t *testing.T) {
+	port := CreateMockServer(pactSimple)
+	defer CleanupMockServer(port)
+
+	_, err := http.Get(fmt.Sprintf("http://localhost:%d/foobar", port))
+	if err != nil {
+		t.Fatalf("Error sending request: %v", err)
+	}
+
+	success, mismatches := Verify(port, tmpPactFolder)
+	if !success {
+		t.Fatalf("want 'true' but got '%v'", success)
+	}
+
+	if len(mismatches) != 0 {
+		t.Fatalf("want 0 mismatches, got '%d'", len(mismatches))
+	}
+}
+
+func TestMockServer_VerifyFail(t *testing.T) {
 	port := CreateMockServer(pactSimple)
 
 	success, mismatches := Verify(port, tmpPactFolder)
-
 	if success {
 		t.Fatalf("want 'false' but got '%v'", success)
 	}
@@ -141,5 +159,11 @@ func TestMockServer_WritePactfile(t *testing.T) {
 
 	if res != 0 {
 		t.Fatalf("want '0', got '%d'", res)
+	}
+
+	res = WritePactFile(port, "/foo/bar/baz")
+
+	if res == 0 {
+		t.Fatalf("want '1', got '%d'", res)
 	}
 }

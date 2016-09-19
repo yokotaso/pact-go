@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -52,7 +51,7 @@ func createMockedDaemon(success bool) (*Daemon, *ServiceMock) {
 		}
 	}()
 
-	return NewDaemon(svc, svc), svc
+	return NewDaemon(svc), svc
 }
 
 func TestNewDaemon(t *testing.T) {
@@ -134,112 +133,8 @@ func TestStartAndStopDaemon(t *testing.T) {
 }
 
 func TestDaemonShutdown(t *testing.T) {
-	daemon, manager := createMockedDaemon(true)
+	daemon, _ := createMockedDaemon(true)
 	daemon.Shutdown()
-
-	if manager.ServiceStopCount != 3 {
-		t.Fatalf("Expected Stop() to be called 3 times but got: %d", manager.ServiceStopCount)
-	}
-}
-
-func TestStartServer(t *testing.T) {
-	daemon, _ := createMockedDaemon(true)
-
-	req := types.MockServer{Pid: 1234}
-	res := types.MockServer{}
-	err := daemon.StartServer(req, &res)
-	if err != nil {
-		t.Fatalf("Error: %v", err)
-	}
-
-	if res.Pid == 0 {
-		t.Fatalf("Expected non-zero Pid but got: %d", res.Pid)
-	}
-
-	if res.Port != 0 {
-		t.Fatalf("Expected non-zero port but got: %d", res.Port)
-	}
-}
-
-func TestListServers(t *testing.T) {
-	daemon, _ := createMockedDaemon(true)
-	var res types.PactListResponse
-	err := daemon.ListServers(types.MockServer{}, &res)
-
-	if err != nil {
-		t.Fatalf("Error: %v", err)
-	}
-
-	if len(res.Servers) != 3 {
-		t.Fatalf("Expected array of len 3, got: %d", len(res.Servers))
-	}
-}
-
-func TestStopServer(t *testing.T) {
-	daemon, manager := createMockedDaemon(true)
-	var cmd *exec.Cmd
-	var res types.MockServer
-
-	for _, s := range manager.List() {
-		cmd = s
-	}
-	request := types.MockServer{
-		Pid: cmd.Process.Pid,
-	}
-
-	err := daemon.StopServer(request, &res)
-	if err != nil {
-		t.Fatalf("Error: %v", err)
-	}
-
-	if res.Pid != cmd.Process.Pid {
-		t.Fatalf("Expected PID to be 0 but got: %d", res.Pid)
-	}
-
-	if res.Status != 0 {
-		t.Fatalf("Expected exit status to be 0 but got: %d", res.Status)
-	}
-}
-
-func TestStopServer_Fail(t *testing.T) {
-	daemon, manager := createMockedDaemon(true)
-	var cmd *exec.Cmd
-	var res types.MockServer
-
-	for _, s := range manager.List() {
-		cmd = s
-	}
-	request := types.MockServer{
-		Pid: cmd.Process.Pid,
-	}
-
-	manager.ServiceStopError = errors.New("failed to stop server")
-
-	err := daemon.StopServer(request, &res)
-	if err != nil {
-		t.Fatalf("Error: %v", err)
-	}
-}
-
-func TestStopServer_FailedStatus(t *testing.T) {
-	daemon, manager := createMockedDaemon(true)
-	var cmd *exec.Cmd
-	var res types.MockServer
-
-	for _, s := range manager.List() {
-		cmd = s
-	}
-	request := types.MockServer{
-		Pid: cmd.Process.Pid,
-	}
-
-	manager.ServiceStopResult = false
-
-	daemon.StopServer(request, &res)
-
-	if res.Status != 1 {
-		t.Fatalf("Expected exit status to be 1 but got: %d", res.Status)
-	}
 }
 
 func TestVerifyProvider_MissingProviderBaseURL(t *testing.T) {
@@ -332,79 +227,6 @@ func TestVerifyProvider_ValidProviderStates(t *testing.T) {
 	err := daemon.VerifyProvider(req, &res)
 	if err != nil {
 		t.Fatalf("Error: %v", err)
-	}
-}
-
-func TestRPCClient_List(t *testing.T) {
-	daemon, _ := createMockedDaemon(true)
-	port, _ := utils.GetFreePort()
-	defer waitForDaemonToShutdown(port, daemon, t)
-	go daemon.StartDaemon(port)
-	connectToDaemon(port, t)
-
-	client, err := rpc.DialHTTP("tcp", fmt.Sprintf(":%d", port))
-	var res types.PactListResponse
-	err = client.Call("Daemon.ListServers", types.MockServer{}, &res)
-	if err != nil {
-		log.Fatal("rpc error:", err)
-	}
-
-	if len(res.Servers) != 3 {
-		t.Fatalf("Expected 3 servers to be listed, got: %d", len(res.Servers))
-	}
-}
-
-func TestRPCClient_StartServer(t *testing.T) {
-	daemon, _ := createMockedDaemon(true)
-	port, _ := utils.GetFreePort()
-	defer waitForDaemonToShutdown(port, daemon, t)
-	go daemon.StartDaemon(port)
-	connectToDaemon(port, t)
-
-	client, err := rpc.DialHTTP("tcp", fmt.Sprintf(":%d", port))
-	var res types.MockServer
-	err = client.Call("Daemon.StartServer", types.MockServer{}, &res)
-	if err != nil {
-		log.Fatal("rpc error:", err)
-	}
-
-	if res.Pid == 0 {
-		t.Fatalf("Expected non-zero Pid but got: %d", res.Pid)
-	}
-
-	if res.Port != 0 {
-		t.Fatalf("Expected non-zero port but got: %d", res.Port)
-	}
-}
-
-func TestRPCClient_StopServer(t *testing.T) {
-	daemon, manager := createMockedDaemon(true)
-	port, _ := utils.GetFreePort()
-	defer waitForDaemonToShutdown(port, daemon, t)
-	go daemon.StartDaemon(port)
-	connectToDaemon(port, t)
-
-	var cmd *exec.Cmd
-	for _, s := range manager.List() {
-		cmd = s
-	}
-	request := types.MockServer{
-		Pid: cmd.Process.Pid,
-	}
-
-	client, err := rpc.DialHTTP("tcp", fmt.Sprintf(":%d", port))
-	var res *types.MockServer
-	err = client.Call("Daemon.StopServer", request, &res)
-	if err != nil {
-		log.Fatal("rpc error:", err)
-	}
-
-	if res.Pid != cmd.Process.Pid {
-		t.Fatalf("Expected PID to match request %d but got: %d", cmd.Process.Pid, res.Pid)
-	}
-
-	if res.Port != 0 {
-		t.Fatalf("Expected non-zero port but got: %d", res.Port)
 	}
 }
 

@@ -1,8 +1,6 @@
 package dsl
 
 import (
-	"bytes"
-	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -325,17 +323,4 @@ func TestMatcher_SerialisePactFile(t *testing.T) {
 	if expected != formatJSONObject(body) {
 		t.Fatalf("wanted %s, got %s", expected, formatJSONObject(body))
 	}
-}
-
-// Format a JSON document to make comparison easier.
-func formatJSONObject(object interface{}) string {
-	out, _ := json.Marshal(object)
-	return formatJSON(string(out))
-}
-
-// Format a JSON document to make comparison easier.
-func formatJSON(object string) string {
-	var out bytes.Buffer
-	json.Indent(&out, []byte(object), "", "\t")
-	return string(out.Bytes())
 }

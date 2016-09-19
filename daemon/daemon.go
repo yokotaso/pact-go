@@ -28,18 +28,15 @@ import (
 
 // Daemon wraps the commands for the RPC server.
 type Daemon struct {
-	pactMockSvcManager     Service
 	verificationSvcManager Service
 	signalChan             chan os.Signal
 }
 
 // NewDaemon returns a new Daemon with all instance variables initialised.
-func NewDaemon(MockServiceManager Service, verificationServiceManager Service) *Daemon {
-	MockServiceManager.Setup()
+func NewDaemon(verificationServiceManager Service) *Daemon {
 	verificationServiceManager.Setup()
 
 	return &Daemon{
-		pactMockSvcManager:     MockServiceManager,
 		verificationSvcManager: verificationServiceManager,
 		signalChan:             make(chan os.Signal, 1),
 	}
@@ -87,25 +84,6 @@ func (d Daemon) StopDaemon(request string, reply *string) error {
 // Shutdown ensures all services are cleanly destroyed.
 func (d Daemon) Shutdown() {
 	log.Println("[DEBUG] daemon - shutdown")
-	for _, s := range d.verificationSvcManager.List() {
-		if s != nil {
-			d.pactMockSvcManager.Stop(s.Process.Pid)
-		}
-	}
-}
-
-// StartServer starts a mock server and returns a pointer to atypes.MockServer
-// struct.
-func (d Daemon) StartServer(request types.MockServer, reply *types.MockServer) error {
-	log.Println("[DEBUG] daemon - starting mock server")
-	server := &types.MockServer{}
-	port, svc := d.pactMockSvcManager.NewService(request.Args)
-	server.Port = port
-	server.Status = -1
-	cmd := svc.Start()
-	server.Pid = cmd.Process.Pid
-	*reply = *server
-	return nil
 }
 
 // VerifyProvider runs the Pact Provider Verification Process.
@@ -135,39 +113,6 @@ func (d Daemon) VerifyProvider(request types.VerifyRequest, reply *types.Command
 		ExitCode: exitCode,
 		Message:  string(out.Bytes()),
 	}
-
-	return nil
-}
-
-// ListServers returns a slice of all running types.MockServers.
-func (d Daemon) ListServers(request types.MockServer, reply *types.PactListResponse) error {
-	log.Println("[DEBUG] daemon - listing mock servers")
-	var servers []*types.MockServer
-
-	for port, s := range d.pactMockSvcManager.List() {
-		servers = append(servers, &types.MockServer{
-			Pid:  s.Process.Pid,
-			Port: port,
-		})
-	}
-
-	*reply = types.PactListResponse{
-		Servers: servers,
-	}
-
-	return nil
-}
-
-// StopServer stops the given mock server.
-func (d Daemon) StopServer(request types.MockServer, reply *types.MockServer) error {
-	log.Println("[DEBUG] daemon - stopping mock server")
-	success, err := d.pactMockSvcManager.Stop(request.Pid)
-	if success == true && err == nil {
-		request.Status = 0
-	} else {
-		request.Status = 1
-	}
-	*reply = request
 
 	return nil
 }

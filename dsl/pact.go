@@ -26,7 +26,7 @@ type Pact struct {
 	Port int `json:"-"`
 
 	// Pact RPC Client.
-	// pactClient *PactClient
+	pactClient *PactClient
 
 	// Consumer is the name of the Consumer/Client.
 	Consumer string `json:"consumer"`
@@ -86,18 +86,18 @@ func (p *Pact) Setup() *Pact {
 		p.SpecificationVersion = "2.0.0"
 	}
 
-	// if p.Server == nil {
-	// 	args := []string{
-	// 		fmt.Sprintf("--pact-specification-version %d", p.SpecificationVersion),
-	// 		fmt.Sprintf("--pact-dir %s", p.PactDir),
-	// 		fmt.Sprintf("--log %s/pact.log", p.LogDir),
-	// 		fmt.Sprintf("--consumer %s", p.Consumer),
-	// 		fmt.Sprintf("--provider %s", p.Provider),
-	// 	}
-	// 	client := &PactClient{Port: p.Port}
-	// 	p.pactClient = client
-	// 	// p.Server = client.StartServer()
-	// }
+	if p.Server == nil {
+		// args := []string{
+		// 	fmt.Sprintf("--pact-specification-version %v", p.SpecificationVersion),
+		// 	fmt.Sprintf("--pact-dir %s", p.PactDir),
+		// 	fmt.Sprintf("--log %s/pact.log", p.LogDir),
+		// 	fmt.Sprintf("--consumer %s", p.Consumer),
+		// 	fmt.Sprintf("--provider %s", p.Provider),
+		// }
+		client := &PactClient{Port: p.Port}
+		p.pactClient = client
+		// p.Server = client.StartServer()
+	}
 
 	return p
 }
@@ -122,9 +122,9 @@ func (p *Pact) setupLogging() {
 // of each test suite.
 func (p *Pact) Teardown() *Pact {
 	log.Printf("[DEBUG] teardown")
-	// if p.Server != nil {
-	// 	p.Server = p.pactClient.StopServer(p.Server)
-	// }
+	if p.Server != nil {
+		p.Server = p.pactClient.StopServer(p.Server)
+	}
 	return p
 }
 
@@ -132,8 +132,8 @@ func (p *Pact) Teardown() *Pact {
 // Will cleanup interactions between tests within a suite.
 func (p *Pact) Verify(integrationTest func() error) error {
 	// p.Setup()
-	fmt.Println("CReating mock server from pact file: ", p.formatJSONObject(p))
-	port := native.CreateMockServer(p.formatJSONObject(p))
+	fmt.Println("CReating mock server from pact file: ", formatJSONObject(p))
+	port := native.CreateMockServer(formatJSONObject(p))
 	log.Printf("[DEBUG] pact verify")
 	// mockServer := &MockService{
 	// 	BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
@@ -197,24 +197,23 @@ func (p *Pact) VerifyProvider(request types.VerifyRequest) error {
 
 	log.Printf("[DEBUG] pact provider verification")
 
-	// content, err := p.pactClient.VerifyProvider(request)
-	//
+	content, err := p.pactClient.VerifyProvider(request)
+
 	// // Output test result to screen
-	// log.Println(content)
-	//
-	// return err
-	return nil
+	log.Println(content)
+
+	return err
 }
 
 // Format a JSON document to make comparison easier.
-func (p *Pact) formatJSON(object string) string {
+func formatJSON(object string) string {
 	var out bytes.Buffer
 	json.Indent(&out, []byte(object), "", "\t")
 	return string(out.Bytes())
 }
 
 // Format a JSON document for creating Pact files.
-func (p *Pact) formatJSONObject(object interface{}) string {
+func formatJSONObject(object interface{}) string {
 	out, _ := json.Marshal(object)
-	return p.formatJSON(string(out))
+	return formatJSON(string(out))
 }

@@ -18,7 +18,7 @@ int write_pact_file(int port, char* dir);
 import "C"
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 )
 
 // Request is the sub-struct of Mismatch
@@ -31,6 +31,7 @@ type Request struct {
 }
 
 // Mismatch is a type returned from the validation process
+//
 // [
 //   {
 //     "method": "GET",
@@ -56,10 +57,11 @@ type Mismatch struct {
 	Type    string
 }
 
-// CreateMockServer creates a new Mock Server from a given Pact file
+// CreateMockServer creates a new Mock Server from a given Pact file.
 func CreateMockServer(pact string) int {
+	log.Println("[DEBUG] mock server starting")
 	res := C.create_mock_server(C.CString(pact), 0)
-	fmt.Println("Mock Server running on port:", res)
+	log.Println("[DEBUG] mock server running on port:", res)
 	return int(res)
 }
 
@@ -67,24 +69,23 @@ func CreateMockServer(pact string) int {
 // of Mismatch-es.
 func Verify(port int, dir string) (bool, []Mismatch) {
 	res := C.mock_server_matched(C.int(port))
-	fmt.Println("Match result: ", res)
+	defer CleanupMockServer(port)
 
 	mismatches := MockServerMismatches(port)
-	fmt.Println("Mismatches! :", mismatches)
+	log.Println("[DEBUG] mock server mismatches:", len(mismatches))
 
 	if int(res) == 1 {
+		log.Println("[DEBUG] mock server write pact file")
 		WritePactFile(port, dir)
 	}
-
-	CleanupMockServer(port)
 
 	return int(res) == 1, mismatches
 }
 
 // MockServerMismatches returns a JSON object containing any mismatches from
 // the last set of interactions.
-// TODO: create a specific struct type to marshal this into
 func MockServerMismatches(port int) []Mismatch {
+	log.Println("[DEBUG] mock server determining mismatches:", port)
 	var res []Mismatch
 
 	mismatches := C.mock_server_mismatches(C.int(port))
@@ -95,10 +96,12 @@ func MockServerMismatches(port int) []Mismatch {
 
 // CleanupMockServer frees the memory from the previous mock server.
 func CleanupMockServer(port int) {
+	log.Println("[DEBUG] mock server cleaning up port:", port)
 	C.cleanup_mock_server(C.int(port))
 }
 
 // WritePactFile writes the Pact to file.
 func WritePactFile(port int, dir string) int {
+	log.Println("[DEBUG] pact verify on port:", port, ", dir:", dir)
 	return int(C.write_pact_file(C.int(port), C.CString(dir)))
 }

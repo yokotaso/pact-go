@@ -18,6 +18,7 @@ int write_pact_file(int port, char* dir);
 import "C"
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 )
 
@@ -95,9 +96,13 @@ func MockServerMismatches(port int) []Mismatch {
 }
 
 // CleanupMockServer frees the memory from the previous mock server.
-func CleanupMockServer(port int) {
+func CleanupMockServer(port int) bool {
 	log.Println("[DEBUG] mock server cleaning up port:", port)
-	C.cleanup_mock_server(C.int(port))
+	res := C.cleanup_mock_server(C.int(port))
+
+	fmt.Println("RES: ", res)
+
+	return int(res) == 1
 }
 
 // WritePactFile writes the Pact to file.

@@ -20,7 +20,7 @@ import (
 // Pact is the container structure to run the Consumer Pact test cases.
 type Pact struct {
 	// Current server for the consumer.
-	Server *types.MockServer `json:"-"`
+	ServerPort int `json:"-"`
 
 	// Port the Pact Daemon is running on.
 	Port int `json:"-"`
@@ -86,7 +86,7 @@ func (p *Pact) Setup() *Pact {
 		p.SpecificationVersion = "2.0.0"
 	}
 
-	if p.Server == nil {
+	if p.pactClient == nil {
 		// args := []string{
 		// 	fmt.Sprintf("--pact-specification-version %v", p.SpecificationVersion),
 		// 	fmt.Sprintf("--pact-dir %s", p.PactDir),
@@ -96,7 +96,6 @@ func (p *Pact) Setup() *Pact {
 		// }
 		client := &PactClient{Port: p.Port}
 		p.pactClient = client
-		// p.Server = client.StartServer()
 	}
 
 	return p
@@ -122,8 +121,8 @@ func (p *Pact) setupLogging() {
 // of each test suite.
 func (p *Pact) Teardown() *Pact {
 	log.Printf("[DEBUG] teardown")
-	if p.Server != nil {
-		p.Server = p.pactClient.StopServer(p.Server)
+	if p.ServerPort != 0 {
+		p.pactClient.StopServer(p.ServerPort)
 	}
 	return p
 }
@@ -167,16 +166,7 @@ func (p *Pact) Verify(integrationTest func() error) error {
 // configured file.
 func (p *Pact) WritePact() error {
 	p.Setup()
-	log.Printf("[DEBUG] pact write Pact file")
-	mockServer := MockService{
-		BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
-		Consumer: p.Consumer,
-		Provider: p.Provider,
-	}
-	err := mockServer.WritePact()
-	if err != nil {
-		return err
-	}
+	log.Printf("[WARN] pact write Pact file. THIS IS A NOOP!")
 
 	return nil
 }

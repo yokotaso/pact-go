@@ -20,7 +20,7 @@ import (
 // Pact is the container structure to run the Consumer Pact test cases.
 type Pact struct {
 	// Current server for the consumer.
-	Server *types.MockServer `json:"-"`
+	ServerPort int `json:"-"`
 
 	// Port the Pact Daemon is running on.
 	Port int `json:"-"`
@@ -86,7 +86,7 @@ func (p *Pact) Setup() *Pact {
 		p.SpecificationVersion = "2.0.0"
 	}
 
-	if p.Server == nil {
+	if p.pactClient == nil {
 		// args := []string{
 		// 	fmt.Sprintf("--pact-specification-version %v", p.SpecificationVersion),
 		// 	fmt.Sprintf("--pact-dir %s", p.PactDir),
@@ -96,7 +96,6 @@ func (p *Pact) Setup() *Pact {
 		// }
 		client := &PactClient{Port: p.Port}
 		p.pactClient = client
-		// p.Server = client.StartServer()
 	}
 
 	return p
@@ -122,8 +121,13 @@ func (p *Pact) setupLogging() {
 // of each test suite.
 func (p *Pact) Teardown() *Pact {
 	log.Printf("[DEBUG] teardown")
-	if p.Server != nil {
-		p.Server = p.pactClient.StopServer(p.Server)
+	if p.ServerPort != 0 {
+		err := p.pactClient.StopServer(p.ServerPort)
+		if err == nil {
+			p.ServerPort = 0
+		} else {
+			log.Println("[DEBUG] unable to teardown server:", err)
+		}
 	}
 	return p
 }
@@ -131,33 +135,26 @@ func (p *Pact) Teardown() *Pact {
 // Verify runs the current test case against a Mock Service.
 // Will cleanup interactions between tests within a suite.
 func (p *Pact) Verify(integrationTest func() error) error {
-	// p.Setup()
-	fmt.Println("CReating mock server from pact file: ", formatJSONObject(p))
+	p.Setup()
 	port := native.CreateMockServer(formatJSONObject(p))
+
 	log.Printf("[DEBUG] pact verify")
-	// mockServer := &MockService{
-	// 	BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
-	// 	Consumer: p.Consumer,
-	// 	Provider: p.Provider,
-	// }
 
 	// Run the integration test
 	integrationTest()
 
+	// Run Verification Process
 	res, mismatches := native.Verify(port, p.PactDir)
 	fmt.Println("Result from verify:", res, mismatches)
+
 	if !res {
 		return fmt.Errorf("Pact validation failed!")
 	}
-	// Run Verification Process
-	// err := mockServer.Verify()
-	// if err != nil {
-	// 	return err
-	// }
 
 	// Clear out interations
-	// p.Interactions = make([]*Interaction, 0)
+	p.Interactions = make([]*Interaction, 0)
 
+	// TODO: do this??
 	// return mockServer.DeleteInteractions()
 	return nil
 }
@@ -166,19 +163,9 @@ func (p *Pact) Verify(integrationTest func() error) error {
 // given Consumer <-> Provider pair. It will write out the Pact to the
 // configured file.
 func (p *Pact) WritePact() error {
+	log.Printf("[WARN] write pact file")
 	p.Setup()
-	log.Printf("[DEBUG] pact write Pact file")
-	mockServer := MockService{
-		BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
-		Consumer: p.Consumer,
-		Provider: p.Provider,
-	}
-	err := mockServer.WritePact()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return native.WritePactFile(p.ServerPort, p.LogDir)
 }
 
 // VerifyProvider reads the provided pact files and runs verification against
@@ -196,10 +183,9 @@ func (p *Pact) VerifyProvider(request types.VerifyRequest) error {
 	}
 
 	log.Printf("[DEBUG] pact provider verification")
-
 	content, err := p.pactClient.VerifyProvider(request)
 
-	// // Output test result to screen
+	// Output test result to screen
 	log.Println(content)
 
 	return err

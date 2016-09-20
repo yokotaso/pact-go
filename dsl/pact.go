@@ -122,7 +122,12 @@ func (p *Pact) setupLogging() {
 func (p *Pact) Teardown() *Pact {
 	log.Printf("[DEBUG] teardown")
 	if p.ServerPort != 0 {
-		p.pactClient.StopServer(p.ServerPort)
+		err := p.pactClient.StopServer(p.ServerPort)
+		if err == nil {
+			p.ServerPort = 0
+		} else {
+			log.Println("[DEBUG] unable to teardown server:", err)
+		}
 	}
 	return p
 }
@@ -130,33 +135,26 @@ func (p *Pact) Teardown() *Pact {
 // Verify runs the current test case against a Mock Service.
 // Will cleanup interactions between tests within a suite.
 func (p *Pact) Verify(integrationTest func() error) error {
-	// p.Setup()
-	fmt.Println("CReating mock server from pact file: ", formatJSONObject(p))
+	p.Setup()
 	port := native.CreateMockServer(formatJSONObject(p))
+
 	log.Printf("[DEBUG] pact verify")
-	// mockServer := &MockService{
-	// 	BaseURL:  fmt.Sprintf("http://localhost:%d", p.Server.Port),
-	// 	Consumer: p.Consumer,
-	// 	Provider: p.Provider,
-	// }
 
 	// Run the integration test
 	integrationTest()
 
+	// Run Verification Process
 	res, mismatches := native.Verify(port, p.PactDir)
 	fmt.Println("Result from verify:", res, mismatches)
+
 	if !res {
 		return fmt.Errorf("Pact validation failed!")
 	}
-	// Run Verification Process
-	// err := mockServer.Verify()
-	// if err != nil {
-	// 	return err
-	// }
 
 	// Clear out interations
-	// p.Interactions = make([]*Interaction, 0)
+	p.Interactions = make([]*Interaction, 0)
 
+	// TODO: do this??
 	// return mockServer.DeleteInteractions()
 	return nil
 }
@@ -165,10 +163,9 @@ func (p *Pact) Verify(integrationTest func() error) error {
 // given Consumer <-> Provider pair. It will write out the Pact to the
 // configured file.
 func (p *Pact) WritePact() error {
+	log.Printf("[WARN] write pact file")
 	p.Setup()
-	log.Printf("[WARN] pact write Pact file. THIS IS A NOOP!")
-
-	return nil
+	return native.WritePactFile(p.ServerPort, p.LogDir)
 }
 
 // VerifyProvider reads the provided pact files and runs verification against
@@ -186,10 +183,9 @@ func (p *Pact) VerifyProvider(request types.VerifyRequest) error {
 	}
 
 	log.Printf("[DEBUG] pact provider verification")
-
 	content, err := p.pactClient.VerifyProvider(request)
 
-	// // Output test result to screen
+	// Output test result to screen
 	log.Println(content)
 
 	return err

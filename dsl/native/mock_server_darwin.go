@@ -105,8 +105,32 @@ func CleanupMockServer(port int) bool {
 	return int(res) == 1
 }
 
+var (
+	// ErrMockServerPanic indicates a panic ocurred when invoking the remote Mock Server.
+	ErrMockServerPanic = fmt.Errorf("a general panic occured when invoking mock service")
+
+	// ErrUnableToWritePactFile indicates an error when writing the pact file to disk.
+	ErrUnableToWritePactFile = fmt.Errorf("unable to write to file")
+
+	// ErrMockServerNotfound indicates the Mock Server could not be found.
+	ErrMockServerNotfound = fmt.Errorf("unable to find mock server with the given port")
+)
+
 // WritePactFile writes the Pact to file.
-func WritePactFile(port int, dir string) int {
+func WritePactFile(port int, dir string) error {
 	log.Println("[DEBUG] pact verify on port:", port, ", dir:", dir)
-	return int(C.write_pact_file(C.int(port), C.CString(dir)))
+	res := int(C.write_pact_file(C.int(port), C.CString(dir)))
+
+	switch res {
+	case 0:
+		return nil
+	case 1:
+		return ErrMockServerPanic
+	case 2:
+		return ErrUnableToWritePactFile
+	case 3:
+		return ErrMockServerNotfound
+	default:
+		return fmt.Errorf("an unknown error ocurred when writing to pact file")
+	}
 }

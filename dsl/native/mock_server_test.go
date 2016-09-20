@@ -13,7 +13,7 @@ var pactSimple = `{
   },
   "provider": {
     "name": "provider"
-  },  
+  },
   "interactions": [
     {
       "description": "Some name for the test",
@@ -29,13 +29,13 @@ var pactSimple = `{
   }]
 }`
 
-var pactComplex = `{  
+var pactComplex = `{
   "consumer": {
     "name": "consumer"
   },
   "provider": {
     "name": "provider"
-  },  
+  },
   "interactions": [
     {
     "request": {
@@ -155,15 +155,15 @@ func TestMockServer_WritePactfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error sending request: %v", err)
 	}
-	res := WritePactFile(port, tmpPactFolder)
+	err = WritePactFile(port, tmpPactFolder)
 
-	if res != 0 {
-		t.Fatalf("want '0', got '%d'", res)
+	if err != nil {
+		t.Fatal("error: ", err)
 	}
 
-	res = WritePactFile(port, "/foo/bar/baz")
+	err = WritePactFile(port, "/foo/bar/baz")
 
-	if res == 0 {
-		t.Fatalf("want '1', got '%d'", res)
+	if err == nil {
+		t.Fatal("want error but got nil")
 	}
 }

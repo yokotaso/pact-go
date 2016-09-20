@@ -113,15 +113,6 @@ func (p *PactClient) VerifyProvider(request types.VerifyRequest) (string, error)
 	return res.Message, err
 }
 
-// ListServers lists all running Pact Mock Servers.
-func (p *PactClient) ListServers() (res types.PactListResponse) {
-	log.Println("[DEBUG] client: listing servers")
-
-	// native.CleanupMockServer(server)
-
-	return res
-}
-
 // StopServer stops a remote Pact Mock Server.
 func (p *PactClient) StopServer(server int) error {
 	log.Println("[DEBUG] client: stop server")

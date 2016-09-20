@@ -133,26 +133,34 @@ func (p *Pact) Teardown() *Pact {
 // Verify runs the current test case against a Mock Service.
 // Will cleanup interactions between tests within a suite.
 func (p *Pact) Verify(integrationTest func() error) error {
+	log.Println("[DEBUG] pact verify")
 	p.Setup()
 
 	// Start server
 	fmt.Println("[DEBUG] Sending pact file:", formatJSONObject(p))
 	native.CreateMockServer(formatJSONObject(p), p.ServerPort)
 
-	log.Println("[DEBUG] pact verify")
-
 	// Run the integration test
 	integrationTest()
 
 	// Run Verification Process
 	res, mismatches := native.Verify(p.ServerPort, p.PactDir)
-	fmt.Println("Result from verify:", res, mismatches)
+	p.displayMismatches(mismatches)
 
 	if !res {
 		return fmt.Errorf("Pact validation failed!")
 	}
 
 	return nil
+}
+
+func (p *Pact) displayMismatches(mismatches []native.Mismatch) {
+	if len(mismatches) > 0 {
+		log.Println("[INFO] pact validation failed, errors: ")
+		for _, m := range mismatches {
+			log.Println(m)
+		}
+	}
 }
 
 // WritePact should be called writes when all tests have been performed for a

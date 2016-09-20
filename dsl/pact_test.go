@@ -155,9 +155,10 @@ func TestPact_VerifyFail(t *testing.T) {
 
 func TestPact_Setup(t *testing.T) {
 	pact := &Pact{LogLevel: "DEBUG"}
+	pact.ServerPort = 0
 	pact.Setup()
-	if pact.ServerPort > 0 {
-		t.Fatalf("want 0, got '%d'", pact.ServerPort)
+	if pact.ServerPort == 0 {
+		t.Fatalf("want > 0, got 0")
 	}
 
 	if pact.pactClient == nil {

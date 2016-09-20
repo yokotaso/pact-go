@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pact-foundation/pact-go/dsl/native"
 	"github.com/pact-foundation/pact-go/types"
 )
 
@@ -80,14 +79,6 @@ var waitForPort = func(port int, message string) error {
 	}
 }
 
-// StartServer starts a remote Pact Mock Server.
-func (p *PactClient) StartServer(pactFile string) int {
-	log.Println("[DEBUG] Creating mock server from pact file: ", pactFile)
-	port := native.CreateMockServer(pactFile)
-
-	return port
-}
-
 // VerifyProvider runs the verification process against a running Provider.
 func (p *PactClient) VerifyProvider(request types.VerifyRequest) (string, error) {
 	log.Println("[DEBUG] client: verifying a provider")
@@ -111,17 +102,6 @@ func (p *PactClient) VerifyProvider(request types.VerifyRequest) (string, error)
 	}
 
 	return res.Message, err
-}
-
-// StopServer stops a remote Pact Mock Server.
-func (p *PactClient) StopServer(server int) error {
-	log.Println("[DEBUG] client: stop server")
-
-	if !native.CleanupMockServer(server) {
-		return fmt.Errorf("unable to stop mock server with port: %d", server)
-	}
-
-	return nil
 }
 
 // StopDaemon remotely shuts down the Pact Daemon.

@@ -59,26 +59,20 @@ type Mismatch struct {
 }
 
 // CreateMockServer creates a new Mock Server from a given Pact file.
-func CreateMockServer(pact string) int {
+func CreateMockServer(pact string, port int) int {
 	log.Println("[DEBUG] mock server starting")
-	res := C.create_mock_server(C.CString(pact), 0)
+	res := C.create_mock_server(C.CString(pact), C.int(port))
 	log.Println("[DEBUG] mock server running on port:", res)
 	return int(res)
 }
 
 // Verify verifies that all interactions were successful. If not, returns a slice
-// of Mismatch-es.
+// of Mismatch-es. Does not write the pact or cleanup server.
 func Verify(port int, dir string) (bool, []Mismatch) {
 	res := C.mock_server_matched(C.int(port))
-	defer CleanupMockServer(port)
 
 	mismatches := MockServerMismatches(port)
 	log.Println("[DEBUG] mock server mismatches:", len(mismatches))
-
-	if int(res) == 1 {
-		log.Println("[DEBUG] mock server write pact file")
-		WritePactFile(port, dir)
-	}
 
 	return int(res) == 1, mismatches
 }
@@ -99,8 +93,6 @@ func MockServerMismatches(port int) []Mismatch {
 func CleanupMockServer(port int) bool {
 	log.Println("[DEBUG] mock server cleaning up port:", port)
 	res := C.cleanup_mock_server(C.int(port))
-
-	fmt.Println("RES: ", res)
 
 	return int(res) == 1
 }

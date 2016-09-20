@@ -113,14 +113,6 @@ func createDaemon(port int, success bool) (*daemon.Daemon, *daemon.ServiceMock) 
 	return d, svc
 }
 
-func TestClient_StartServer(t *testing.T) {
-	client := &PactClient{}
-
-	port := client.StartServer(pactFileContents)
-	defer client.StopServer(port)
-	waitForPortInTest(port, t)
-}
-
 func TestClient_StartServerRPCError(t *testing.T) {
 	port, _ := utils.GetFreePort()
 	createDaemon(port, true)
@@ -243,26 +235,6 @@ func TestClient_VerifyProviderFailExecution(t *testing.T) {
 }
 
 var oldTimeoutDuration = timeoutDuration
-
-func TestClient_StopServer(t *testing.T) {
-	client := &PactClient{}
-	port := client.StartServer(pactFileContents)
-	res := client.StopServer(port)
-
-	if res != nil {
-		t.Fatalf("wanted nil, got '%v'", res)
-	}
-}
-
-func TestClient_StopServerFail(t *testing.T) {
-	port, _ := utils.GetFreePort()
-	client := &PactClient{}
-	res := client.StopServer(port)
-
-	if res == nil {
-		t.Fatal("wanted error, got nil")
-	}
-}
 
 func TestClient_StopDaemon(t *testing.T) {
 	port, _ := utils.GetFreePort()

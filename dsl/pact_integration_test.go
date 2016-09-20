@@ -1,11 +1,16 @@
 package dsl
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"os"
 	"testing"
 )
 
 func Test_NativeMockServer(t *testing.T) {
+	os.RemoveAll(pactDir)
+
 	matcher := map[string]interface{}{
 		"user": map[string]interface{}{
 			"phone":     Regex("\\d+", 12345678),
@@ -20,45 +25,94 @@ func Test_NativeMockServer(t *testing.T) {
 		Port:     6666,
 		Consumer: "billy",
 		Provider: "bobby",
-		LogLevel: "ERROR",
-		LogDir:   "logs",
-		PactDir:  "pacts",
+		LogLevel: "DEBUG",
+		LogDir:   logDir,
+		PactDir:  pactDir,
 	}
+	defer pact.Teardown()
 
 	pact.AddInteraction().
 		Given("Some state").
 		UponReceiving("Some name for the test").
 		WithRequest(Request{
-			Path:   "/",
-			Method: "GET",
+			Path:   "/foobar",
+			Method: "POST",
 			Body:   PactBodyBuilder(matcher),
+		}).
+		WillRespondWith(Response{
+			Status: 200,
+			Headers: map[string]string{
+				"Content-Type": "application/json",
+			},
 		})
 
-	res := pact.Verify(func() error {
-		fmt.Println("Verifying (should fail)")
+	err := pact.Verify(func() error {
+		request := `{
+			"pass": 1234,
+			"user": {
+				"address": "some address",
+				"name": "someusername",
+				"phone": 12345678,
+				"plaintext": "plaintext"
+			}
+		}`
+
+		http.Post(fmt.Sprintf("http://localhost:%d/foobar", pact.ServerPort), "application/json", bytes.NewReader([]byte(request)))
 		return nil
 	})
-	if res == nil {
-		t.Fatalf("want error but got none")
+
+	if err != nil {
+		t.Fatal("err: ", err)
 	}
+	pact.WritePact()
+	if err != nil {
+		t.Fatal("error:", err)
+	}
+
+	pact2 := Pact{
+		Port:     6666,
+		Consumer: "billy",
+		Provider: "bobby",
+		LogLevel: "DEBUG",
+		LogDir:   logDir,
+		PactDir:  pactDir,
+	}
+	defer pact2.Teardown()
+
+	pact2.AddInteraction().
+		Given("A user").
+		UponReceiving("A request for user A").
+		WithRequest(Request{
+			Path:   "/user",
+			Method: "GET",
+		}).
+		WillRespondWith(Response{
+			Status: 400,
+			Headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+		})
+
+	err = pact2.Verify(func() error {
+		http.Get(fmt.Sprintf("http://localhost:%d/user", pact2.ServerPort))
+		return nil
+	})
+
+	if err != nil {
+		t.Fatal("error:", err)
+	}
+
+	err = pact2.WritePact()
+	if err != nil {
+		t.Fatal("error:", err)
+	}
+
 }
 
-//
-// import (
-// 	"fmt"
-// 	"log"
-// 	"net/http"
-// 	"os"
-// 	"testing"
-//
-// 	"github.com/pact-foundation/pact-go/types"
-// 	"github.com/pact-foundation/pact-go/utils"
-// )
-//
-// var dir, _ = os.Getwd()
-// var pactDir = fmt.Sprintf("%s/../pacts", dir)
-// var logDir = fmt.Sprintf("%s/../logs", dir)
-//
+var dir, _ = os.Getwd()
+var pactDir = fmt.Sprintf("%s/../pacts", dir)
+var logDir = fmt.Sprintf("%s/../logs", dir)
+
 // func TestPact_Integration(t *testing.T) {
 // 	// Enable when running E2E/integration tests before a release
 // 	if os.Getenv("PACT_INTEGRATED_TESTS") != "" {

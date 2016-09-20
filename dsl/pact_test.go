@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pact-foundation/pact-go/dsl/native"
 	"github.com/pact-foundation/pact-go/types"
 	"github.com/pact-foundation/pact-go/utils"
 )
@@ -110,7 +111,7 @@ func TestPact_WritePact(t *testing.T) {
 	}
 
 	pact.Setup()
-	pact.ServerPort = pact.pactClient.StartServer(pactFileContents)
+	native.CreateMockServer(pactFileContents, pact.ServerPort)
 
 	err := pact.WritePact()
 	if err != nil {
@@ -176,7 +177,7 @@ func TestPact_Teardown(t *testing.T) {
 
 	pact := &Pact{Port: port, LogLevel: "DEBUG"}
 	pact.Setup()
-	pact.ServerPort = pact.pactClient.StartServer(pactFileContents)
+	native.CreateMockServer(pactFileContents, pact.ServerPort)
 
 	if pact.ServerPort == 0 {
 		t.Fatalf("want > 0, got 0")

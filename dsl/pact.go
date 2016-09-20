@@ -7,6 +7,7 @@ package dsl
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/hashicorp/logutils"
 	"github.com/pact-foundation/pact-go/dsl/native"
 	"github.com/pact-foundation/pact-go/types"
+	"github.com/pact-foundation/pact-go/utils"
 )
 
 // Pact is the container structure to run the Consumer Pact test cases.
@@ -60,7 +62,7 @@ type Pact struct {
 // required things. Will automatically start a Mock Service if none running.
 func (p *Pact) AddInteraction() *Interaction {
 	p.Setup()
-	log.Printf("[DEBUG] pact add interaction")
+	log.Println("[DEBUG] pact add interaction")
 	i := &Interaction{}
 	p.Interactions = append(p.Interactions, i)
 	return i
@@ -71,7 +73,7 @@ func (p *Pact) AddInteraction() *Interaction {
 // has been started.
 func (p *Pact) Setup() *Pact {
 	p.setupLogging()
-	log.Printf("[DEBUG] pact setup")
+	log.Println("[DEBUG] pact setup")
 	dir, _ := os.Getwd()
 
 	if p.LogDir == "" {
@@ -87,15 +89,11 @@ func (p *Pact) Setup() *Pact {
 	}
 
 	if p.pactClient == nil {
-		// args := []string{
-		// 	fmt.Sprintf("--pact-specification-version %v", p.SpecificationVersion),
-		// 	fmt.Sprintf("--pact-dir %s", p.PactDir),
-		// 	fmt.Sprintf("--log %s/pact.log", p.LogDir),
-		// 	fmt.Sprintf("--consumer %s", p.Consumer),
-		// 	fmt.Sprintf("--provider %s", p.Provider),
-		// }
 		client := &PactClient{Port: p.Port}
 		p.pactClient = client
+	}
+	if p.ServerPort == 0 {
+		p.ServerPort, _ = utils.GetFreePort()
 	}
 
 	return p
@@ -114,19 +112,19 @@ func (p *Pact) setupLogging() {
 		}
 		log.SetOutput(p.logFilter)
 	}
-	log.Printf("[DEBUG] pact setup logging")
+	log.Println("[DEBUG] pact setup logging")
 }
 
 // Teardown stops the Pact Mock Server. This usually is called on completion
 // of each test suite.
 func (p *Pact) Teardown() *Pact {
-	log.Printf("[DEBUG] teardown")
+	log.Println("[DEBUG] teardown")
 	if p.ServerPort != 0 {
-		err := p.pactClient.StopServer(p.ServerPort)
-		if err == nil {
+
+		if native.CleanupMockServer(p.ServerPort) {
 			p.ServerPort = 0
 		} else {
-			log.Println("[DEBUG] unable to teardown server:", err)
+			log.Println("[DEBUG] unable to teardown server")
 		}
 	}
 	return p
@@ -136,36 +134,37 @@ func (p *Pact) Teardown() *Pact {
 // Will cleanup interactions between tests within a suite.
 func (p *Pact) Verify(integrationTest func() error) error {
 	p.Setup()
-	port := native.CreateMockServer(formatJSONObject(p))
 
-	log.Printf("[DEBUG] pact verify")
+	// Start server
+	fmt.Println("[DEBUG] Sending pact file:", formatJSONObject(p))
+	native.CreateMockServer(formatJSONObject(p), p.ServerPort)
+
+	log.Println("[DEBUG] pact verify")
 
 	// Run the integration test
 	integrationTest()
 
 	// Run Verification Process
-	res, mismatches := native.Verify(port, p.PactDir)
+	res, mismatches := native.Verify(p.ServerPort, p.PactDir)
 	fmt.Println("Result from verify:", res, mismatches)
 
 	if !res {
 		return fmt.Errorf("Pact validation failed!")
 	}
 
-	// Clear out interations
-	p.Interactions = make([]*Interaction, 0)
-
-	// TODO: do this??
-	// return mockServer.DeleteInteractions()
 	return nil
 }
 
 // WritePact should be called writes when all tests have been performed for a
 // given Consumer <-> Provider pair. It will write out the Pact to the
-// configured file.
+// configured file. This is safe to call multiple times as the service is smart
+// enough to merge pacts and avoid duplicates.
 func (p *Pact) WritePact() error {
-	log.Printf("[WARN] write pact file")
-	p.Setup()
-	return native.WritePactFile(p.ServerPort, p.LogDir)
+	log.Println("[WARN] write pact file")
+	if p.ServerPort != 0 {
+		return native.WritePactFile(p.ServerPort, p.PactDir)
+	}
+	return errors.New("pact server not yet started")
 }
 
 // VerifyProvider reads the provided pact files and runs verification against
@@ -175,14 +174,14 @@ func (p *Pact) VerifyProvider(request types.VerifyRequest) error {
 
 	// If we provide a Broker, we go to it to find consumers
 	if request.BrokerURL != "" {
-		log.Printf("[DEBUG] pact provider verification - finding all consumers from broker: %s", request.BrokerURL)
+		log.Println("[DEBUG] pact provider verification - finding all consumers from broker: ", request.BrokerURL)
 		err := findConsumers(p.Provider, &request)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Printf("[DEBUG] pact provider verification")
+	log.Println("[DEBUG] pact provider verification")
 	content, err := p.pactClient.VerifyProvider(request)
 
 	// Output test result to screen

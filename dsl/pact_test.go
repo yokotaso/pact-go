@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -57,52 +58,59 @@ func captureOutput(action func()) string {
 	return strings.TrimSpace(string(out))
 }
 
-// func TestPact_Verify(t *testing.T) {
-// 	ms := setupMockServer(true, t)
-// 	defer ms.Close()
-// 	testCalled := false
-// 	var testFunc = func() error {
-// 		testCalled = true
-// 		return nil
-// 	}
-//
-// 	pact := &Pact{
-// 		Server: &types.MockServer{
-// 			Port: getPort(ms.URL),
-// 		},
-// 		Consumer: "My Consumer",
-// 		Provider: "My Provider",
-// 	}
-//
-// 	pact.
-// 		AddInteraction().
-// 		Given("Some state").
-// 		UponReceiving("Some name for the test").
-// 		WithRequest(Request{}).
-// 		WillRespondWith(Response{})
-//
-// 	err := pact.Verify(testFunc)
-// 	if err != nil {
-// 		t.Fatalf("Error: %v", err)
-// 	}
-//
-// 	if testCalled == false {
-// 		t.Fatalf("Expected test function to be called but it was not")
-// 	}
-// }
+func TestPact_Verify(t *testing.T) {
+	pact := &Pact{
+		Consumer: "My Consumer",
+		Provider: "My Provider",
+	}
+	defer pact.Teardown()
 
-// func TestPact_VerifyMockServerFail(t *testing.T) {
-// 	ms := setupMockServer(true, t)
-// 	defer ms.Close()
-// 	var testFunc = func() error { return nil }
-//
-// 	pact := &Pact{Server: &types.MockServer{Port: 1}}
-// 	err := pact.Verify(testFunc)
-//
-// 	if err == nil {
-// 		t.Fatalf("Expected error but got none")
-// 	}
-// }
+	testCalled := false
+	var testFunc = func() error {
+		http.Get(fmt.Sprintf("http://localhost:%d/", pact.ServerPort))
+		testCalled = true
+		return nil
+	}
+
+	pact.
+		AddInteraction().
+		Given("Some state").
+		UponReceiving("Some name for the test").
+		WithRequest(Request{Path: "/", Method: "GET"}).
+		WillRespondWith(Response{})
+
+	err := pact.Verify(testFunc)
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	if testCalled == false {
+		t.Fatalf("Expected test function to be called but it was not")
+	}
+}
+
+func TestPact_VerifyMockServerFail(t *testing.T) {
+	var testFunc = func() error { return nil }
+
+	pact := &Pact{
+		Consumer: "My Consumer",
+		Provider: "My Provider",
+	}
+	defer pact.Teardown()
+
+	pact.
+		AddInteraction().
+		Given("Some state").
+		UponReceiving("Some name for the test").
+		WithRequest(Request{Path: "/", Method: "GET"}).
+		WillRespondWith(Response{})
+
+	err := pact.Verify(testFunc)
+
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+}
 
 func TestPact_WritePact(t *testing.T) {
 	pact := &Pact{

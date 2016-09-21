@@ -58,6 +58,35 @@ type Pact struct {
 	SpecificationVersion string `json:"pactSpecificationVersion"`
 }
 
+// MarshalJSON marshals the Pact file into it's specific format.
+// In particular, this saves clients from having to supply an Object to Pact
+// for the Consumer and PRovider fields.
+func (p *Pact) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		// Consumer is the name of the Consumer/Client.
+		Consumer map[string]string `json:"consumer"`
+
+		// Provider is the name of the Providing service.
+		Provider map[string]string `json:"provider"`
+
+		// Interactions contains all of the Mock Service Interactions to be setup.
+		Interactions []*Interaction `json:"interactions"`
+
+		// Specify which version of the Pact Specification should be used (1 or 2).
+		// Defaults to 2.
+		SpecificationVersion string `json:"pactSpecificationVersion"`
+	}{
+		Consumer: map[string]string{
+			"name": p.Consumer,
+		},
+		Provider: map[string]string{
+			"name": p.Provider,
+		},
+		Interactions:         p.Interactions,
+		SpecificationVersion: p.SpecificationVersion,
+	})
+}
+
 // AddInteraction creates a new Pact interaction, initialising all
 // required things. Will automatically start a Mock Service if none running.
 func (p *Pact) AddInteraction() *Interaction {

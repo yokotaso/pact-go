@@ -61,6 +61,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 )
 
 // matcherType is essentially a key value JSON pairs for serialisation
@@ -68,6 +69,16 @@ type matcherType map[string]interface{}
 
 // Matching Rule
 type matchingRuleType map[string]matcherType
+
+// Matcher regexes
+const (
+	hexadecimal = `[0-9a-fA-F]+`
+	ipAddress   = `(\d{1,3}\.)+\d{1,3}`
+	uuid        = `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`
+	isoDateTime = `^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$`
+	isoDate     = ``
+	isoTime     = ``
+)
 
 // Matcher is responsible for generating Pact values and matching in the Pact file.
 // It can be used as an alternative to plain string matches in the DSL.
@@ -91,8 +102,8 @@ const (
 	// LikeMatcher is the ID for the Like Matcher
 	LikeMatcher = iota
 
-	// TermMatcher is the ID for the Term Matcher
-	TermMatcher
+	// RegexMatcher is the ID for the Term Matcher
+	RegexMatcher
 
 	// ArrayMinLikeMatcher is the ID for the ArrayMinLike Matcher
 	ArrayMinLikeMatcher
@@ -153,7 +164,95 @@ func Regex(matcher string, content interface{}) Matcher {
 			"regex": matcher,
 		},
 		Value: content,
-		Type:  TermMatcher,
+		Type:  RegexMatcher,
+	}
+}
+
+// HexValue defines a matcher that accepts hexidecimal values.
+func HexValue(content string) Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": hexadecimal,
+		},
+		Value: content,
+		Type:  RegexMatcher,
+	}
+}
+
+// Identifier defines a matcher that accepts integer values.
+func Identifier(content int64) Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "type",
+		},
+		Value: content,
+		Type:  LikeMatcher,
+	}
+}
+
+// Integer defines a matcher that accepts ints. Identical to Identifier.
+var Integer = Identifier
+
+// IPAddress defines a matcher that accepts IP addresses.
+func IPAddress() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": ipAddress,
+		},
+		Value: "127.0.0.1",
+		Type:  RegexMatcher,
+	}
+}
+
+// Decimal defines a matcher that accepts any decimal value.
+func Decimal() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "type",
+		},
+		Value: 123.45,
+		Type:  LikeMatcher,
+	}
+}
+
+// IsoDateTime matches a pattern corresponding to the ISO_DATETIME_FORMAT, which
+// is "yyyy-MM-dd'T'HH:mm:ss". The current date and time is used as the eaxmple.
+func IsoDateTime() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": isoDateTime,
+		},
+		Value: time.Now().Format(time.RFC3339),
+		Type:  RegexMatcher,
+	}
+}
+
+// IsoDate matches a pattern corresponding to the ISO_DATE_FORMAT, which
+// is "yyyy-MM-dd". The current date is used as the eaxmple.
+func IsoDate() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": isoDate,
+		},
+		Value: time.Now().Format("2006-01-02"),
+		Type:  RegexMatcher,
+	}
+}
+
+// IsoTime matches a pattern corresponding to the ISO_DATE_FORMAT, which
+// is "'T'HH:mm:ss". The current date is used as the eaxmple.
+func IsoTime() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": isoTime,
+		},
+		Value: time.Now().Format("'T'15:04:05"),
+		Type:  RegexMatcher,
 	}
 }
 
@@ -231,7 +330,7 @@ func build(key string, value interface{}, body map[string]interface{}, path stri
 			path = path + buildPath(key, "")
 
 			// Simple Matchers (Terminal cases)
-		case TermMatcher, LikeMatcher:
+		case RegexMatcher, LikeMatcher:
 			body[key] = t.Value
 			log.Println("[DEBUG] dsl generator: adding matcher (Term/Like)         =>", path+buildPath(key, ""))
 			matchingRules[path+buildPath(key, "")] = t.Matcher

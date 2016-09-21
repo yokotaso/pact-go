@@ -146,7 +146,7 @@ func TestMatcher_Arrays(t *testing.T) {
 		"id":   5678,
 	}
 	expectedBody := formatJSON(`{
-		"id": 5678,		
+		"id": 5678,
 		"pass": 1234,
 		"users": [
 			"someusername1",

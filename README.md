@@ -129,14 +129,38 @@ In addition to verbatim value matching, you have 3 useful matching functions
 in the `dsl` package that can increase expressiveness and reduce brittle test
 cases.
 
-* `dsl.Term(example, matcher)` - tells Pact that the value should match using
+The DSL supports the following matching methods:
+
+* `Regex(matcher, example)` - tells Pact that the value should match using
 a given regular expression, using `example` in mock responses. `example` must be
 a string.
-* `dsl.Like(content)` - tells Pact that the value itself is not important, as long
+* `Like(content)` - tells Pact that the value itself is not important, as long
 as the element _type_ (valid JSON number, string, object etc.) itself matches.
-* `dsl.EachLike(content, min)` - tells Pact that the value should be an array type,
+* `ArrayMinLike(min, content)` - tells Pact that the value should be an array type,
 consisting of elements like those passed in. `min` must be >= 1. `content` may
 be a valid JSON value: e.g. strings, numbers and objects.
+* `ArrayMaxLike(max, content)` - tells Pact that the value should be an array type,
+consisting of elements like those passed in. `max` must be >= 1. `content` may
+be a valid JSON value: e.g. strings, numbers and objects.
+* `HexValue()` - defines a matcher that accepts hexidecimal values. A random 
+hexadecimal value will be generated.
+* `Identifier()` - defines a matcher that accepts integer values. A random 
+value will be generated.
+* `IpAddress()` - defines a matcher that accepts v4 IP addresses. 127.0.0.1 will be used
+as the eaxample.
+* `Integer()` - defines a matcher that accepts any integer values. A random integer 
+will be used.
+* `Decimal()` - defines a matcher that accepts any decimal numbers. A random float64 
+will be used.
+* `Timestamp()` - defines a matcher accepting any ISO 8601 timestamp. The format 
+used is ("yyyy-MM-dd'T'HH:mm:ss"). the current date and time is used for the 
+example.
+* `Time` - defines a matcher accepting any time, using the format `'T'HH:mm:ss`
+The current time is used as the example.
+* `Date` - defines a matcher accepting any date, using the format `yyyy-MM-dd`. 
+The current date is used as the example.
+* `UUID` - fefines a matcher that accepts UUIDs. A random one will be generated 
+as the example.
 
 *Example:*
 
@@ -145,21 +169,20 @@ Here is a complex example that shows how all 3 terms can be used together:
 ```go
 jumper := Like(`"jumper"`)
 shirt := Like(`"shirt"`)
-tag := EachLike(fmt.Sprintf(`[%s, %s]`, jumper, shirt), 2)
+tag := ArrayMinLike(1,fmt.Sprintf(`[%s, %s]`, jumper, shirt), 2)
 size := Like(10)
 colour := Term("red", "red|green|blue")
 
 match := formatJSON(
-	EachLike(
-		EachLike(
+	ArrayMinLike(1,
+		ArrayMinLike(1,
 			fmt.Sprintf(
 				`{
+					"uuid": UUID(),
 					"size": %s,
 					"colour": %s,
 					"tag": %s
-				}`, size, colour, tag),
-			1),
-		1))
+				}`, size, colour, tag))))
 ```
 
 This example will result in a response body from the mock server that looks like:

@@ -60,8 +60,11 @@ package dsl
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
 	"time"
+
+	uuidv4 "github.com/twinj/uuid"
 )
 
 // matcherType is essentially a key value JSON pairs for serialisation
@@ -74,10 +77,11 @@ type matchingRuleType map[string]matcherType
 const (
 	hexadecimal = `[0-9a-fA-F]+`
 	ipAddress   = `(\d{1,3}\.)+\d{1,3}`
+	ipv6Address = `(\A([0-9a-f]{1,4}:){1,1}(:[0-9a-f]{1,4}){1,6}\Z)|(\A([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,5}\Z)|(\A([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,4}\Z)|(\A([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,3}\Z)|(\A([0-9a-f]{1,4}:){1,5}(:[0-9a-f]{1,4}){1,2}\Z)|(\A([0-9a-f]{1,4}:){1,6}(:[0-9a-f]{1,4}){1,1}\Z)|(\A(([0-9a-f]{1,4}:){1,7}|:):\Z)|(\A:(:[0-9a-f]{1,4}){1,7}\Z)|(\A((([0-9a-f]{1,4}:){6})(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3})\Z)|(\A(([0-9a-f]{1,4}:){5}[0-9a-f]{1,4}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3})\Z)|(\A([0-9a-f]{1,4}:){5}:[0-9a-f]{1,4}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,1}(:[0-9a-f]{1,4}){1,4}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,3}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,2}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,1}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A(([0-9a-f]{1,4}:){1,5}|:):(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A:(:[0-9a-f]{1,4}){1,5}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)`
 	uuid        = `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`
-	isoDateTime = `^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$`
-	isoDate     = ``
-	isoTime     = ``
+	Timestamp   = `^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$`
+	Date        = `^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))?)`
+	Time        = `^(T\d\d:\d\d(:\d\d)?(\.\d+)?(([+-]\d\d:\d\d)|Z)?)?$`
 )
 
 // Matcher is responsible for generating Pact values and matching in the Pact file.
@@ -169,24 +173,25 @@ func Regex(matcher string, content interface{}) Matcher {
 }
 
 // HexValue defines a matcher that accepts hexidecimal values.
-func HexValue(content string) Matcher {
+func HexValue() Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "regex",
 			"regex": hexadecimal,
 		},
-		Value: content,
+		Value: "3F",
 		Type:  RegexMatcher,
 	}
 }
 
 // Identifier defines a matcher that accepts integer values.
-func Identifier(content int64) Matcher {
+func Identifier() Matcher {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "type",
 		},
-		Value: content,
+		Value: r.Int63(),
 		Type:  LikeMatcher,
 	}
 }
@@ -194,7 +199,7 @@ func Identifier(content int64) Matcher {
 // Integer defines a matcher that accepts ints. Identical to Identifier.
 var Integer = Identifier
 
-// IPAddress defines a matcher that accepts IP addresses.
+// IPAddress defines a matcher that accepts valid IPv4 addresses.
 func IPAddress() Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
@@ -206,52 +211,80 @@ func IPAddress() Matcher {
 	}
 }
 
+// IPv4Address matches valid IPv4 addresses.
+var IPv4Address = IPAddress
+
+// IPv6Address defines a matcher that accepts IP addresses.
+func IPv6Address() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": ipAddress,
+		},
+		Value: "::ffff:192.0.2.128",
+		Type:  RegexMatcher,
+	}
+}
+
 // Decimal defines a matcher that accepts any decimal value.
 func Decimal() Matcher {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "type",
 		},
-		Value: 123.45,
+		Value: r.Float64(),
 		Type:  LikeMatcher,
 	}
 }
 
-// IsoDateTime matches a pattern corresponding to the ISO_DATETIME_FORMAT, which
+// Timestamp matches a pattern corresponding to the ISO_DATETIME_FORMAT, which
 // is "yyyy-MM-dd'T'HH:mm:ss". The current date and time is used as the eaxmple.
-func IsoDateTime() Matcher {
+func Timestamp() Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "regex",
-			"regex": isoDateTime,
+			"regex": Timestamp,
 		},
 		Value: time.Now().Format(time.RFC3339),
 		Type:  RegexMatcher,
 	}
 }
 
-// IsoDate matches a pattern corresponding to the ISO_DATE_FORMAT, which
+// Date matches a pattern corresponding to the ISO_DATE_FORMAT, which
 // is "yyyy-MM-dd". The current date is used as the eaxmple.
-func IsoDate() Matcher {
+func Date() Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "regex",
-			"regex": isoDate,
+			"regex": Date,
 		},
 		Value: time.Now().Format("2006-01-02"),
 		Type:  RegexMatcher,
 	}
 }
 
-// IsoTime matches a pattern corresponding to the ISO_DATE_FORMAT, which
-// is "'T'HH:mm:ss". The current date is used as the eaxmple.
-func IsoTime() Matcher {
+// Time matches a pattern corresponding to the ISO_DATE_FORMAT, which
+// is "'T'HH:mm:ss". The current tem is used as the eaxmple.
+func Time() Matcher {
 	return Matcher{
 		Matcher: map[string]interface{}{
 			"match": "regex",
-			"regex": isoTime,
+			"regex": Time,
 		},
-		Value: time.Now().Format("'T'15:04:05"),
+		Value: time.Now().Format("T15:04:05"),
+		Type:  RegexMatcher,
+	}
+}
+
+// UUID defines a matcher that accepts UUIDs. Produces a v4 UUID as the example.
+func UUID() Matcher {
+	return Matcher{
+		Matcher: map[string]interface{}{
+			"match": "regex",
+			"regex": uuid,
+		},
+		Value: uuidv4.NewV4().String(),
 		Type:  RegexMatcher,
 	}
 }

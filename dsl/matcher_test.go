@@ -1,9 +1,133 @@
 package dsl
 
 import (
+	"fmt"
 	"reflect"
+	"regexp"
 	"testing"
 )
+
+func TestMatcher_SugarMatchers(t *testing.T) {
+	type matcherTestCase struct {
+		matcher  Matcher
+		testCase func(val interface{}) error
+	}
+	matchers := map[string]matcherTestCase{
+		"HexValue": matcherTestCase{
+			matcher: HexValue(),
+			testCase: func(v interface{}) (err error) {
+				if v.(string) != "3F" {
+					err = fmt.Errorf("want '3F', got '%v'", v)
+				}
+				return
+			},
+		},
+		"Identifier": matcherTestCase{
+			matcher: Identifier(),
+			testCase: func(v interface{}) (err error) {
+				_, valid := v.(int64)
+				if !valid {
+					err = fmt.Errorf("want int64, got '%v'", v)
+				}
+				return
+			},
+		},
+		"Integer": matcherTestCase{
+			matcher: Integer(),
+			testCase: func(v interface{}) (err error) {
+				_, valid := v.(int64)
+				if !valid {
+					err = fmt.Errorf("want int64, got '%v'", v)
+				}
+				return
+			},
+		},
+		"IPAddress": matcherTestCase{
+			matcher: IPAddress(),
+			testCase: func(v interface{}) (err error) {
+				if v.(string) != "127.0.0.1" {
+					err = fmt.Errorf("want '127.0.0.1', got '%v'", v)
+				}
+				return
+			},
+		},
+		"IPv4Address": matcherTestCase{
+			matcher: IPv4Address(),
+			testCase: func(v interface{}) (err error) {
+				if v.(string) != "127.0.0.1" {
+					err = fmt.Errorf("want '127.0.0.1', got '%v'", v)
+				}
+				return
+			},
+		},
+		"IPv6Address": matcherTestCase{
+			matcher: IPv6Address(),
+			testCase: func(v interface{}) (err error) {
+				if v.(string) != "::ffff:192.0.2.128" {
+					err = fmt.Errorf("want '::ffff:192.0.2.128', got '%v'", v)
+				}
+				return
+			},
+		},
+		"Decimal": matcherTestCase{
+			matcher: Decimal(),
+			testCase: func(v interface{}) (err error) {
+				_, valid := v.(float64)
+				if !valid {
+					err = fmt.Errorf("want float64, got '%v'", v)
+				}
+				return
+			},
+		},
+		"Timestamp": matcherTestCase{
+			matcher: Timestamp(),
+			testCase: func(v interface{}) (err error) {
+				_, valid := v.(string)
+				if !valid {
+					err = fmt.Errorf("want string, got '%v'", v)
+				}
+				return
+			},
+		},
+		"Date": matcherTestCase{
+			matcher: Date(),
+			testCase: func(v interface{}) (err error) {
+				_, valid := v.(string)
+				if !valid {
+					err = fmt.Errorf("want string, got '%v'", v)
+				}
+				return
+			},
+		},
+		"Time": matcherTestCase{
+			matcher: Time(),
+			testCase: func(v interface{}) (err error) {
+				_, valid := v.(string)
+				if !valid {
+					err = fmt.Errorf("want string, got '%v'", v)
+				}
+				return
+			},
+		},
+		"UUID": matcherTestCase{
+			matcher: UUID(),
+			testCase: func(v interface{}) (err error) {
+				match, err := regexp.MatchString(uuid, v.(string))
+
+				if !match {
+					err = fmt.Errorf("want string, got '%v'. Err: %v", v, err)
+				}
+				return
+			},
+		},
+	}
+	var err error
+	for k, v := range matchers {
+		if err = v.testCase(v.matcher.Value); err != nil {
+			t.Fatalf("error validating matcher '%s': %v", k, err)
+		}
+	}
+}
 
 func TestMatcher_ArrayMinLike(t *testing.T) {
 	matcher := map[string]interface{}{

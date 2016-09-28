@@ -145,6 +145,57 @@ func TestInteraction_toObject(t *testing.T) {
 	}
 }
 
+func TestInteraction_WithHeaderMatchers(t *testing.T) {
+	// Pass in plain string, should be left alone
+	i := (&Interaction{}).
+		Given("Some state").
+		UponReceiving("Some name for the test").
+		WithRequest(Request{
+			Headers: map[string]interface{}{
+				"FOO": "bar",
+				"BAZ": Regex("\\d+", 1234),
+			},
+			Path: Regex("\\d+", 1234),
+			Body: `{"foo": "bar"}`,
+		}).
+		WillRespondWith(Response{
+			Status: 200,
+		})
+
+	expected := formatJSON(`{
+			"request": {
+				"method": "",
+				"path": 1234,
+				"headers": {
+					"BAZ": 1234,
+					"FOO": "bar"
+				},
+				"body": {
+					"foo": "bar"
+				}
+			},
+			"response": {
+				"status": 200
+			},
+			"description": "Some name for the test",
+			"provider_state": "Some state",
+			"matchingRules": {
+				"$.headers.BAZ": {
+					"match": "regex",
+					"regex": "\\d+"
+				},
+				"$.path": {
+					"match": "regex",
+					"regex": "\\d+"
+				}
+			}
+		}`)
+
+	if expected != formatJSONObject(i) {
+		t.Fatalf("Expected %s, got %s", expected, formatJSONObject(i))
+	}
+}
+
 func TestInteraction_WithPactBodyBuilderRequestAsBody(t *testing.T) {
 	matcher := map[string]interface{}{
 		"user": map[string]interface{}{
@@ -161,46 +212,47 @@ func TestInteraction_WithPactBodyBuilderRequestAsBody(t *testing.T) {
 		Given("Some state").
 		UponReceiving("Some name for the test").
 		WithRequest(Request{
+			Path: "/",
 			Body: PactBodyBuilder(matcher),
 		})
 	expected := formatJSON(`{
-		"request": {
-			"method": "",
-			"path": "",
-			"body": {
-				"pass": 1234,
-				"user": {
-					"address": "some address",
-					"name": "someusername",
-					"phone": 12345678,
-					"plaintext": "plaintext"
+			"request": {
+				"method": "",
+				"path": "/",
+				"body": {
+					"pass": 1234,
+					"user": {
+						"address": "some address",
+						"name": "someusername",
+						"phone": 12345678,
+						"plaintext": "plaintext"
+					}
+				}
+			},
+			"response": {
+				"status": 0
+			},
+			"description": "Some name for the test",
+			"provider_state": "Some state",
+			"matchingRules": {
+				"$.body.pass": {
+					"match": "regex",
+					"regex": "\\d+"
+				},
+				"$.body.user.address": {
+					"match": "regex",
+					"regex": "\\s+"
+				},
+				"$.body.user.name": {
+					"match": "regex",
+					"regex": "\\s+"
+				},
+				"$.body.user.phone": {
+					"match": "regex",
+					"regex": "\\d+"
 				}
 			}
-		},
-		"response": {
-			"status": 0
-		},
-		"description": "Some name for the test",
-		"provider_state": "Some state",
-		"matchingRules": {
-			"$.body.pass": {
-				"match": "regex",
-				"regex": "\\d+"
-			},
-			"$.body.user.address": {
-				"match": "regex",
-				"regex": "\\s+"
-			},
-			"$.body.user.name": {
-				"match": "regex",
-				"regex": "\\s+"
-			},
-			"$.body.user.phone": {
-				"match": "regex",
-				"regex": "\\d+"
-			}
-		}
-	}`)
+		}`)
 
 	if expected != formatJSONObject(i) {
 		t.Fatalf("Expected %s, got %s", expected, formatJSONObject(i))

@@ -1,7 +1,9 @@
 package dsl
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 )
 
@@ -43,6 +45,7 @@ func (p *Interaction) UponReceiving(description string) *Interaction {
 // Mandatory.
 func (p *Interaction) WithRequest(request Request) *Interaction {
 	p.Request = request
+	p.MatchingRules = make(matchingRuleType)
 
 	// Need to fix any weird JSON marshalling issues with the body Here
 	// If body is a string, not an object, we need to put it back into an object
@@ -51,11 +54,34 @@ func (p *Interaction) WithRequest(request Request) *Interaction {
 	case string:
 		p.Request.Body = toObject([]byte(content))
 	case PactBody:
-		log.Println("[DEBUG] Pact Body builder!")
+		log.Println("[DEBUG] matching body with builder")
 		p.Request.Body = content.Body
 		p.MatchingRules = content.MatchingRules
 	default:
 		// leave alone
+	}
+
+	// Handle matchers in Path
+	switch path := request.Path.(type) {
+	case Matcher:
+		log.Println("[DEBUG] matching path with matcher")
+		fmt.Println("Matcher:", path)
+		p.Request.Path = path.Value
+		p.MatchingRules["$.path"] = path.Matcher
+	default:
+		// leave alone
+	}
+
+	// Handle matchers in Headers
+	for k, v := range request.Headers {
+		switch header := v.(type) {
+		case Matcher:
+			log.Println("[DEBUG] matching header", k, "with matcher")
+			request.Headers[k] = header.Value
+			p.MatchingRules[fmt.Sprintf("$.headers.%s", bytes.ToUpper([]byte(k)))] = header.Matcher
+		default:
+			// leave alone
+		}
 	}
 
 	return p

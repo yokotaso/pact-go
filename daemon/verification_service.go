@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 
 	"github.com/kardianos/osext"
@@ -28,6 +29,8 @@ func (m *VerificationService) NewService(args []string) (int, Service) {
 	log.Printf("[DEBUG] starting verification service with args: %v\n", args)
 
 	m.Args = args
+	m.Env = append(os.Environ(), `PACT_INTERACTION_RERUN_COMMAND="To re-run this specific test, set the following environment variables and run your test again: PACT_DESCRIPTION=\"<PACT_DESCRIPTION>\" PACT_PROVIDER_STATE=\"<PACT_PROVIDER_STATE>\""`)
+
 	m.Command = getVerifierCommandPath()
 	return -1, m
 }

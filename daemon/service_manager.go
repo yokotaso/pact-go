@@ -101,7 +101,7 @@ func (s *ServiceManager) List() map[int]*exec.Cmd {
 
 // Run runs a service synchronously and log its output to the given Pipe.
 func (s *ServiceManager) Run(w io.Writer) (*exec.Cmd, error) {
-	log.Println("[DEBUG] starting service")
+	log.Println("[DEBUG] running service")
 	cmd := exec.Command(s.Command, s.Args...)
 	cmd.Env = s.Env
 	cmd.Stdout = w

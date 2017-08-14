@@ -279,6 +279,29 @@ should you want to control log level in your tests, you can set it like so:
 	pact := Pact{
 	  ...
 		LogLevel: "DEBUG", // One of DEBUG, INFO, ERROR, NONE
-	}
+  }
+
+Running a specific provider verification test
+
+Sometimes you want to target a specific test for debugging an issue or some other reason.
+
+This is easy for the consumer side, as each consumer test can be controlled
+within a valid `*testing.T` function, however this is not possible for Provider verification.
+
+But there is a way! Given an interaction that looks as follows
+  pact.
+    AddInteraction().
+    Given("Billy exists").
+    UponReceiving("A request for user Billy").
+    WithRequest(dsl.Request{
+      Method: "GET",
+      Path:   "/users/billy",
+    })
+
+and the function used to run provider verification is `go test -run TestVerification`, you can test the verification of this specific interaction by setting two environment variables `PACT_DESCRIPTION` and `PACT_PROVIDER_STATE` and re-running the command. For example:
+
+```
+PACT_DESCRIPTION="A request for user Billy" PACT_PROVIDER_STATE="Billy exists" go test -run TestVerification
+```
 */
 package main

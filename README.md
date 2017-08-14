@@ -425,6 +425,32 @@ export PACT_BROKER_HOST="https://test.pact.dius.com.au"
 go test -run TestPact_Integration
 ```
 
+### Run a specific provider verification test
+
+Sometimes you want to target a specific test for debugging an issue or some other reason.
+
+This is easy for the consumer side, as each consumer test can be controlled 
+within a valid `*testing.T` function, however this is not possible for Provider verification.
+
+But there is a way! Given an interaction that looks as follows
+```go
+pact.
+  AddInteraction().
+  Given("Billy exists").
+  UponReceiving("A request for user Billy").
+  WithRequest(dsl.Request{
+    Method: "GET",
+    Path:   "/users/billy",
+  })
+...
+```
+
+and the function used to run provider verification is `go test -run TestVerification`, you can test the verification of this specific interaction by setting two environment variables `PACT_DESCRIPTION` and `PACT_PROVIDER_STATE` and re-running the command. For example:
+
+```
+PACT_DESCRIPTION="A request for user Billy" PACT_PROVIDER_STATE="Billy exists" go test -run TestVerification
+```
+
 *Other examples:*
 
 * [API Consumer](https://github.com/pact-foundation/pact-go/tree/master/examples/)

@@ -13,13 +13,13 @@ DSL for the consumer project, and interaction playback and verification for the 
 
 From the [Pact website](http://docs.pact.io/):
 
->The Pact family of frameworks provide support for [Consumer Driven Contracts](http://martinfowler.com/articles/consumerDrivenContracts.html) testing.
+> The Pact family of frameworks provide support for [Consumer Driven Contracts](http://martinfowler.com/articles/consumerDrivenContracts.html) testing.
 
->A Contract is a collection of agreements between a client (Consumer) and an API (Provider) that describes the interactions that can take place between them.
+> A Contract is a collection of agreements between a client (Consumer) and an API (Provider) that describes the interactions that can take place between them.
 
->Consumer Driven Contracts is a pattern that drives the development of the Provider from its Consumers point of view.
+> Consumer Driven Contracts is a pattern that drives the development of the Provider from its Consumers point of view.
 
->Pact is a testing tool that guarantees those Contracts are satisfied.
+> Pact is a testing tool that guarantees those Contracts are satisfied.
 
 Read [Getting started with Pact](http://dius.com.au/2016/02/03/microservices-pact/) for more information on
 how to get going.
@@ -30,7 +30,6 @@ including [flexible matching](http://docs.pact.io/documentation/matching.html).
 <p align="center">
   <img width="880" src="https://raw.githubusercontent.com/pact-foundation/pact-go/master/.github/pact-small.svg?sanitize=true">
 </p>
-
 
 ## Table of Contents
 
@@ -66,32 +65,32 @@ including [flexible matching](http://docs.pact.io/documentation/matching.html).
 
 ## Installation
 
-*NOTE*: This is the deprecated, however stable, `0.x.x` release branch, for the latest see the [master](https://github.com/pact-foundation/pact-go) release.
+_NOTE_: This is the deprecated, however stable, `0.x.x` release branch, for the latest see the [master](https://github.com/pact-foundation/pact-go) release.
 
-* Download one of the zipped [release](https://github.com/pact-foundation/pact-go/releases) distributions for your OS.
-* Unzip the package into a known location, and ensuring the `pact-go` binary is on the `PATH`, next to the `pact` folder.
-* Run `pact-go` to see what options are available.
-* Run `go get -d github.com/pact-foundation/pact-go` to install the source packages
+- Download one of the zipped [release](https://github.com/pact-foundation/pact-go/releases) distributions for your OS.
+- Unzip the package into a known location, and ensuring the `pact-go` binary is on the `PATH`, next to the `pact` folder.
+- Run `pact-go` to see what options are available.
+- Run `go get -d github.com/pact-foundation/pact-go` to install the source packages
 
 ## Running
 
 Pact Go runs a two-step process:
 
-1. Run `pact-go daemon` in a separate process/shell. The Consumer and Provider
-DSLs communicate over a local (RPC) connection, and is transparent to clients.
-1. Create your Pact Consumer/Provider Tests. It defaults to run on port `6666`.
+1.  Run `pact-go daemon` in a separate process/shell. The Consumer and Provider
+    DSLs communicate over a local (RPC) connection, and is transparent to clients.
+1.  Create your Pact Consumer/Provider Tests. It defaults to run on port `6666`.
 
-*NOTE: The daemon is thread safe and it is normal to leave it
-running for long periods (e.g. on a CI server).*
+_NOTE: The daemon is thread safe and it is normal to leave it
+running for long periods (e.g. on a CI server)._
 
 ### Consumer
 
 We'll run through a simple example to get an understanding the concepts:
 
-1. Start the daemon with `./pact-go daemon`.
-1. `go get github.com/pact-foundation/pact-go`
-1. `cd $GOPATH/src/github.com/pact-foundation/pact-go/examples/`
-1. `go test -v -run TestConsumer`.
+1.  Start the daemon with `./pact-go daemon`.
+1.  `go get github.com/pact-foundation/pact-go`
+1.  `cd $GOPATH/src/github.com/pact-foundation/pact-go/examples/`
+1.  `go test -v -run TestConsumer`.
 
 The simple example looks like this:
 
@@ -109,9 +108,8 @@ import (
 )
 
 // Example Pact: How to run me!
-// 1. Start the daemon with `./pact-go daemon`
-// 2. cd <pact-go>/examples
-// 3. go test -v -run TestConsumer
+// 1. cd <pact-go>/examples
+// 2. go test -v -run TestConsumer
 func TestConsumer(t *testing.T) {
 
 	// Create Pact connecting to local Daemon
@@ -172,16 +170,16 @@ In addition to verbatim value matching, you have 3 useful matching functions
 in the `dsl` package that can increase expressiveness and reduce brittle test
 cases.
 
-* `dsl.Term(example, matcher)` - tells Pact that the value should match using
-a given regular expression, using `example` in mock responses. `example` must be
-a string.
-* `dsl.Like(content)` - tells Pact that the value itself is not important, as long
-as the element _type_ (valid JSON number, string, object etc.) itself matches.
-* `dsl.EachLike(content, min)` - tells Pact that the value should be an array type,
-consisting of elements like those passed in. `min` must be >= 1. `content` may
-be a valid JSON value: e.g. strings, numbers and objects.
+- `dsl.Term(example, matcher)` - tells Pact that the value should match using
+  a given regular expression, using `example` in mock responses. `example` must be
+  a string.
+- `dsl.Like(content)` - tells Pact that the value itself is not important, as long
+  as the element _type_ (valid JSON number, string, object etc.) itself matches.
+- `dsl.EachLike(content, min)` - tells Pact that the value should be an array type,
+  consisting of elements like those passed in. `min` must be >= 1. `content` may
+  be a valid JSON value: e.g. strings, numbers and objects.
 
-*Example:*
+_Example:_
 
 Here is a complex example that shows how all 3 terms can be used together:
 
@@ -200,22 +198,14 @@ match := EachLike(
 ```
 
 This example will result in a response body from the mock server that looks like:
+
 ```json
 [
   [
     {
       "size": 10,
       "colour": "red",
-      "tag": [
-        [
-          "jumper",
-          "shirt"
-        ],
-        [
-          "jumper",
-          "shirt"
-        ]
-      ]
+      "tag": [["jumper", "shirt"], ["jumper", "shirt"]]
     }
   ]
 ]
@@ -227,7 +217,7 @@ Furthermore, if you isolate your Data Transfer Objects (DTOs) to an adapters pac
 
 This saves the trouble of declaring the contract by hand. It also maintains one source of truth. To change the consumer-provider interface, you only have to update your DTO struct and the contract will automatically follow suit.
 
-*Example:*
+_Example:_
 
 ```go
 type DTO struct {
@@ -237,7 +227,9 @@ type DTO struct {
   Date  string    `json:"date" pact:"example=2000-01-01,regex=^\\d{4}-\\d{2}-\\d{2}$"`
 }
 ```
+
 then specifying a response body is as simple as:
+
 ```go
 	// Set up our expected interactions.
 	pact.
@@ -263,23 +255,22 @@ See [dsl.Match](https://github.com/pact-foundation/pact-go/blob/master/dsl/match
 See the [matcher tests](https://github.com/pact-foundation/pact-go/blob/master/dsl/matcher_test.go)
 for more matching examples.
 
-*NOTE*: One caveat to note, is that you will need to use valid Ruby
+_NOTE_: One caveat to note, is that you will need to use valid Ruby
 [regular expressions](http://ruby-doc.org/core-2.1.5/Regexp.html) and double
 escape backslashes.
 
 Read more about [flexible matching](https://github.com/pact-foundation/pact-ruby/wiki/Regular-expressions-and-type-matching-with-Pact).
 
-
 ### Provider
 
-1. Start the daemon with `./pact-go daemon`.
-1. `go get github.com/pact-foundation/pact-go`
-1. `cd $GOPATH/src/github.com/pact-foundation/pact-go/examples/`
-1. `go test -v -run TestProvider`.
+1.  Start the daemon with `./pact-go daemon`.
+1.  `go get github.com/pact-foundation/pact-go`
+1.  `cd $GOPATH/src/github.com/pact-foundation/pact-go/examples/`
+1.  `go test -v -run TestProvider`.
 
 Here is the Provider test process broker down:
 
-1. Start your Provider API:
+1.  Start your Provider API:
 
     You need to be able to first start your API in the background as part of your tests
     before you can run the verification process. Here we create `startServer` which can be
@@ -316,17 +307,17 @@ Here is the Provider test process broker down:
     }
     ```
 
-  Note that the server has a `/setup` endpoint that is given a `types.ProviderState` and allows the
-  verifier to setup any
-  [provider states](http://docs.pact.io/documentation/provider_states.html) before
-  each test is run.
+Note that the server has a `/setup` endpoint that is given a `types.ProviderState` and allows the
+verifier to setup any
+[provider states](http://docs.pact.io/documentation/provider_states.html) before
+each test is run.
 
-2. Verify provider API
+2.  Verify provider API
 
-	You can now tell Pact to read in your Pact files and verify that your API will
-	satisfy the requirements of each of your known consumers:
+    You can now tell Pact to read in your Pact files and verify that your API will
+    satisfy the requirements of each of your known consumers:
 
-	```go
+    ```go
     func TestProvider(t *testing.T) {
 
       // Create Pact connecting to local Daemon
@@ -346,56 +337,58 @@ Here is the Provider test process broker down:
         ProviderStatesSetupURL: "http://localhost:8000/setup",
       })
     }
-	```
+    ```
 
-  The `VerifyProvider` will handle all verifications, treating them as subtests
-  and giving you granular test reporting. If you don't like this behaviour, you may call `VerifyProviderRaw` directly and handle the errors manually.
+The `VerifyProvider` will handle all verifications, treating them as subtests
+and giving you granular test reporting. If you don't like this behaviour, you may call `VerifyProviderRaw` directly and handle the errors manually.
 
-  Note that `PactURLs` may be a list of local pact files or remote based
-  urls (e.g. from a
-  [Pact Broker](http://docs.pact.io/documentation/sharings_pacts.html)).
+Note that `PactURLs` may be a list of local pact files or remote based
+urls (e.g. from a
+[Pact Broker](http://docs.pact.io/documentation/sharings_pacts.html)).
 
-  See the `Skip()'ed` [integration tests](https://github.com/pact-foundation/pact-go/blob/master/dsl/pact_test.go)
-  for a more complete E2E example.
+See the `Skip()'ed` [integration tests](https://github.com/pact-foundation/pact-go/blob/master/dsl/pact_test.go)
+for a more complete E2E example.
 
 #### Provider Verification
 
 When validating a Provider, you have 3 options to provide the Pact files:
 
-1. Use `PactURLs` to specify the exact set of pacts to be replayed:
+1.  Use `PactURLs` to specify the exact set of pacts to be replayed:
 
-	```go
-	pact.VerifyProvider(t, types.VerifyRequest{
-		ProviderBaseURL:        "http://myproviderhost",
-		PactURLs:               []string{"http://broker/pacts/provider/them/consumer/me/latest/dev"},
-		ProviderStatesSetupURL: "http://myproviderhost/setup",
-		BrokerUsername:         os.Getenv("PACT_BROKER_USERNAME"),
-		BrokerPassword:         os.Getenv("PACT_BROKER_PASSWORD"),
-	})
-	```
-1. Use `PactBroker` to automatically find all of the latest consumers:
+    ```go
+    pact.VerifyProvider(t, types.VerifyRequest{
+    	ProviderBaseURL:        "http://myproviderhost",
+    	PactURLs:               []string{"http://broker/pacts/provider/them/consumer/me/latest/dev"},
+    	ProviderStatesSetupURL: "http://myproviderhost/setup",
+    	BrokerUsername:         os.Getenv("PACT_BROKER_USERNAME"),
+    	BrokerPassword:         os.Getenv("PACT_BROKER_PASSWORD"),
+    })
+    ```
 
-	```go
-	pact.VerifyProvider(t, types.VerifyRequest{
-		ProviderBaseURL:        "http://myproviderhost",
-		BrokerURL:              "http://brokerHost",
-		ProviderStatesSetupURL: "http://myproviderhost/setup",
-		BrokerUsername:         os.Getenv("PACT_BROKER_USERNAME"),
-		BrokerPassword:         os.Getenv("PACT_BROKER_PASSWORD"),
-	})
-	```
-1. Use `PactBroker` and `Tags` to automatically find all of the latest consumers:
+1.  Use `PactBroker` to automatically find all of the latest consumers:
 
-	```go
-	pact.VerifyProvider(t, types.VerifyRequest{
-		ProviderBaseURL:        "http://myproviderhost",
-		BrokerURL:              "http://brokerHost",
-		Tags:                   []string{"latest", "sit4"},
-		ProviderStatesSetupURL: "http://myproviderhost/setup",
-		BrokerUsername:         os.Getenv("PACT_BROKER_USERNAME"),
-		BrokerPassword:         os.Getenv("PACT_BROKER_PASSWORD"),
-	})
-	```
+    ```go
+    pact.VerifyProvider(t, types.VerifyRequest{
+    	ProviderBaseURL:        "http://myproviderhost",
+    	BrokerURL:              "http://brokerHost",
+    	ProviderStatesSetupURL: "http://myproviderhost/setup",
+    	BrokerUsername:         os.Getenv("PACT_BROKER_USERNAME"),
+    	BrokerPassword:         os.Getenv("PACT_BROKER_PASSWORD"),
+    })
+    ```
+
+1.  Use `PactBroker` and `Tags` to automatically find all of the latest consumers:
+
+    ```go
+    pact.VerifyProvider(t, types.VerifyRequest{
+    	ProviderBaseURL:        "http://myproviderhost",
+    	BrokerURL:              "http://brokerHost",
+    	Tags:                   []string{"latest", "sit4"},
+    	ProviderStatesSetupURL: "http://myproviderhost/setup",
+    	BrokerUsername:         os.Getenv("PACT_BROKER_USERNAME"),
+    	BrokerPassword:         os.Getenv("PACT_BROKER_PASSWORD"),
+    })
+    ```
 
 Options 2 and 3 are particularly useful when you want to validate that your
 Provider is able to meet the contracts of what's in Production and also the latest
@@ -403,7 +396,6 @@ in development.
 
 See this [article](http://rea.tech/enter-the-pact-matrix-or-how-to-decouple-the-release-cycles-of-your-microservices/)
 for more on this strategy.
-
 
 For more on provider states, refer to http://docs.pact.io/documentation/provider_states.html.
 
@@ -424,7 +416,7 @@ For example, to have an `Authorization` header sent as part of the verification 
 
 As you can see, this is your opportunity to modify\add to headers being sent to the Provider API, for example to create a valid time-bound token.
 
-*Important Note*: You should only use this feature for things that can not be persisted in the pact file. By modifying the request, you are potentially modifying the contract from the consumer tests!
+_Important Note_: You should only use this feature for things that can not be persisted in the pact file. By modifying the request, you are potentially modifying the contract from the consumer tests!
 
 ### Publishing pacts to a Pact Broker and Tagging Pacts
 
@@ -481,8 +473,8 @@ curl -v \
 The following flags are required to use basic authentication when
 publishing or retrieving Pact files to/from a Pact Broker:
 
-* `BrokerUsername` - the username for Pact Broker basic authentication.
-* `BrokerPassword` - the password for Pact Broker basic authentication.
+- `BrokerUsername` - the username for Pact Broker basic authentication.
+- `BrokerPassword` - the password for Pact Broker basic authentication.
 
 ### Troubleshooting
 
@@ -492,15 +484,15 @@ Pact tests tend to be quite long, due to the need to be specific about request/r
 
 You have two options to achieve this feat:
 
-1. Set `PactFileWriteMode` to `"merge"` when creating a `Pact` struct:
+1.  Set `PactFileWriteMode` to `"merge"` when creating a `Pact` struct:
 
     This will allow you to have multiple independent tests for a given Consumer-Provider pair, without it clobbering previous interactions.
 
     See this [PR](https://github.com/pact-foundation/pact-js/pull/48) for background.
 
-    _NOTE_: If using this approach, you *must* be careful to clear out existing pact files (e.g. `rm ./pacts/*.json`) before you run tests to ensure you don't have left over requests that are no longer relevent.
+    _NOTE_: If using this approach, you _must_ be careful to clear out existing pact files (e.g. `rm ./pacts/*.json`) before you run tests to ensure you don't have left over requests that are no longer relevent.
 
-1. Create a Pact test helper to orchestrate the setup and teardown of the mock service for multiple tests.
+1.  Create a Pact test helper to orchestrate the setup and teardown of the mock service for multiple tests.
 
     In larger test bases, this can reduce test suite time and the amount of code you have to manage.
 
@@ -533,17 +525,21 @@ export PACT_BROKER_HOST="https://test.pact.dius.com.au"
 
 Once these variables have been exported, cd into one of the directories containing a test and run `go test -v .`:
 
-* [API Consumer](https://github.com/pact-foundation/pact-go/tree/master/examples/)
-* [Golang ServeMux](https://github.com/pact-foundation/pact-go/tree/master/examples/mux)
-* [Go Kit](https://github.com/pact-foundation/pact-go/tree/master/examples/go-kit)
-* [Gin](https://github.com/pact-foundation/pact-go/tree/master/examples/gin)
+- [API Consumer](https://github.com/pact-foundation/pact-go/tree/master/examples/)
+- [Golang ServeMux](https://github.com/pact-foundation/pact-go/tree/master/examples/mux)
+- [Go Kit](https://github.com/pact-foundation/pact-go/tree/master/examples/go-kit)
+- [Gin](https://github.com/pact-foundation/pact-go/tree/master/examples/gin)
 
 ## Contact
 
-* Twitter: [@pact_up](https://twitter.com/pact_up)
-* Stack Overflow: stackoverflow.com/questions/tagged/pact
-* Gitter: https://gitter.im/realestate-com-au/pact
-* Gophers #pact [Slack channel](https://gophers.slack.com/messages/pact/)
+Join us in slack: [![slack](http://slack.pact.io/badge.svg)](http://slack.pact.io)
+
+or
+
+- Twitter: [@pact_up]
+- Stack Overflow: stackoverflow.com/questions/tagged/pact
+- Gitter: https://gitter.im/realestate-com-au/pact
+- Gophers #pact [Slack channel]
 
 ## Documentation
 
@@ -557,7 +553,6 @@ See [TROUBLESHOOTING](https://github.com/pact-foundation/pact-go/wiki/Troublesho
 
 The [roadmap](https://docs.pact.io/roadmap/) for Pact and Pact Go is outlined on our main website.
 Detail on the native Go implementation can be found [here](https://github.com/pact-foundation/pact-go/wiki/Native-implementation-roadmap).
-
 
 ## Contributing
 

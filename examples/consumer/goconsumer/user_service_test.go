@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pact-foundation/pact-go/dsl"
 	"github.com/pact-foundation/pact-go/types"
@@ -25,8 +26,8 @@ var form url.Values
 var rr http.ResponseWriter
 var req *http.Request
 
-// var name = "Jean-Marie de La Beaujardière😀😍"
-var name = "billy"
+var name = "Jean-Marie de La Beaujardière😀😍"
+
 var like = dsl.Like
 var eachLike = dsl.EachLike
 var term = dsl.Term
@@ -57,7 +58,7 @@ func TestMain(m *testing.M) {
 		err := p.Publish(types.PublishRequest{
 			PactURLs:        []string{filepath.FromSlash(fmt.Sprintf("%s/billy-bobby.json", pactDir))},
 			PactBroker:      brokerHost,
-			ConsumerVersion: "1.0.1",
+			ConsumerVersion: fmt.Sprintf("1.0.%d", time.Now().Unix()),
 			Tags:            []string{"latest", "sit4"},
 			BrokerUsername:  os.Getenv("PACT_BROKER_USERNAME"),
 			BrokerPassword:  os.Getenv("PACT_BROKER_PASSWORD"),
@@ -79,7 +80,7 @@ func setup() {
 
 	// Login form values
 	form = url.Values{}
-	form.Add("username", "billy")
+	form.Add("username", name)
 	form.Add("password", "issilly")
 
 	// Create a request to pass to our handler.

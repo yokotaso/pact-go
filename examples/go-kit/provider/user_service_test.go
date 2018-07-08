@@ -29,9 +29,9 @@ var port, _ = utils.GetFreePort()
 // Provider States data sets
 var billyExists = &UserRepository{
 	users: map[string]*User{
-		"billy": &User{
-			Name:     "billy",
-			username: "billy",
+		"Jean-Marie de La Beaujardière😀😍": &User{
+			Name:     "Jean-Marie de La Beaujardière😀😍",
+			username: "Jean-Marie de La Beaujardière😀😍",
 			password: "issilly",
 			Type:     "admin",
 		},
@@ -42,9 +42,9 @@ var billyDoesNotExist = &UserRepository{}
 
 var billyUnauthorized = &UserRepository{
 	users: map[string]*User{
-		"billy": &User{
-			Name:     "billy",
-			username: "billy",
+		"Jean-Marie de La Beaujardière😀😍": &User{
+			Name:     "Jean-Marie de La Beaujardière😀😍",
+			username: "Jean-Marie de La Beaujardière😀😍",
 			password: "issilly1",
 			Type:     "blocked",
 		},
@@ -121,7 +121,7 @@ func createPact() dsl.Pact {
 	pactDaemonPort := 6666
 	return dsl.Pact{
 		Port:     pactDaemonPort,
-		Consumer: "billy",
+		Consumer: "Jean-Marie de La Beaujardière😀😍",
 		Provider: "bobby",
 		LogDir:   logDir,
 		PactDir:  pactDir,

@@ -85,7 +85,7 @@ Read [Getting started with Pact] for more information for beginners.
 
 | Version | Stable     | [Spec] Compatibility | Install            |
 | ------- | ---------- | -------------------- | ------------------ |
-| 1.0.x   | Yes        | 2, 3\*               | See [Installation] |
+| 1.0.x   | Yes        | 2, 3\*               | See [Installation](#Installation) |
 | 1.1.x   | No (alpha) | 2, 3\*               | 1.1.x [alpha]      |
 | 0.x.x   | Yes        | Up to v2             | 0.x.x [stable]     |
 
